@@ -1,0 +1,14 @@
+{
+  "class": "Mage",
+  "level": 60,
+  "role": "caster",
+  "stats": { "int": 300, "spellCritPct": 15, "spellHitPct": 6, "sp": 450 },
+  "target": { "level": 63, "resist": 0 },
+  "abilities": [
+    { "name": "Frostbolt", "kind": "spell", "baseMin": 600, "baseMax": 640, "coeff": 0.814, "castTime": 2.5 }
+  ],
+  "mods": [
+    { "name": "Ice Shards", "critDamagePct": 100, "appliesTo": ["spell"] },
+    { "name": "Winter's Chill", "critPct": 5, "appliesTo": ["spell"] }
+  ]
+}
