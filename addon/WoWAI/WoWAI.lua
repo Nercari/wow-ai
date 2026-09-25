@@ -22,7 +22,10 @@ _G.WoWAI = WoWAI
 local function ForeverModules() return WoWAIForever and WoWAIForever.modules or {} end
 local function ForeverBlocked()
 	for _, mod in ipairs(ForeverModules()) do
-		if type(mod.blocked) == "function" then local ok, reason = pcall(mod.blocked); if ok and reason and tostring(reason) ~= "" then return tostring(reason) end end
+		if type(mod.blocked) == "function" then
+			local ok, reason = pcall(mod.blocked)
+			if ok and reason and tostring(reason) ~= "" then return tostring(reason) end
+		end
 	end
 end
 local Codec = WoWAI_Codec
@@ -114,7 +117,7 @@ end
 -- Agents are named by id as the bridge knows them ("claude", "codex", "grok");
 -- the bridge lists the ones it has, and its default, in every slot file. A chat
 -- with no agent of its own runs on the bridge's default.
-local AGENT_NAMES = { claude = "Claude", codex = "Codex", grok = "Grok" }
+local AGENT_NAMES = { claude = "Claude", codex = "Codex", grok = "Grok", agy = "Antigravity", hermes = "Hermes" }
 
 local function AgentName(id)
 	id = tostring(id or "")
@@ -389,10 +392,11 @@ end
 
 -- Redraw the strip from every outbound message the bridge hasn't acknowledged.
 local function RefreshStrip()
-	if ForeverBlocked() then HideStrip(); return end
+	-- While blocked (combat, AI off) only the off/on switch records are drawn.
+	local blocked = ForeverBlocked()
 	local ids = {}
 	for id, rec in pairs(run.outbound) do
-		if not rec.acked then table.insert(ids, id) end
+		if not rec.acked and (rec.force or not blocked) then table.insert(ids, id) end
 	end
 	if #ids == 0 then
 		HideStrip()
@@ -1005,7 +1009,7 @@ function WoWAI.SkillLines()
 	return out
 end
 
-function WoWAI.GameContext()
+function WoWAI.GameContext(kind)
 	local lines = {}
 	local version, build, _, toc = Try(GetBuildInfo)
 	toc = tonumber(toc)
@@ -1120,13 +1124,17 @@ function WoWAI.GameContext()
 	local extra = {}
 	for _, mod in ipairs(ForeverModules()) do
 		if type(mod.context) == "function" then
-			local ok, value = pcall(mod.context, "game")
-			if ok and type(value) == "string" and value ~= "" then table.insert(extra, value:sub(1, 300)) end
+			local ok, value = pcall(mod.context, kind)
+			if ok and type(value) == "string" and value ~= "" then
+				local moduleMax = kind and kind ~= "game" and 700 or 300
+				table.insert(extra, value:sub(1, moduleMax))
+			end
 		end
 	end
 	for _, value in ipairs(extra) do table.insert(lines, value) end
 	local s = table.concat(lines, "\n"):gsub("[\30\31]", " ")
-	if #s > CONTEXT_MAX then s = s:sub(1, CONTEXT_MAX) end
+	local max = kind and kind ~= "game" and (Codec.MAX_PAYLOAD - 520) or CONTEXT_MAX
+	if #s > max then s = s:sub(1, max) end
 	return s
 end
 
@@ -1209,10 +1217,11 @@ end
 
 -- allow: optional list of permission rules to grant before this message runs.
 function WoWAI.Send(text, allow, opts)
-	local c = ActiveChat()
-	local blocked = ForeverBlocked()
-	if blocked then if c then AddHistory(c, "system", blocked); WoWAI.Render() end; return end
 	opts = type(opts) == "table" and opts or {}
+	local c = type(opts.chat) == "string" and FindChat(opts.chat) or ActiveChat()
+	-- force: the off/on switch itself, which must work even in combat.
+	local blocked = opts.force ~= true and ForeverBlocked()
+	if blocked then if c then AddHistory(c, "system", blocked); WoWAI.Render() end; return end
 	if not c then return end
 	text = Trim(text or "")
 	if c.pendingId then
@@ -1246,13 +1255,23 @@ function WoWAI.Send(text, allow, opts)
 		return
 	end
 	-- The game context rides along when the bridge doesn't have this version yet.
-	local ctx = ContextToSend(limit - #text)
-	local temporaryContext = type(opts.context) == "string" and opts.context ~= ""
-	if temporaryContext then
-		ctx = db.settings.context and WoWAI.GameContext() or ""
-		local addition = opts.context:sub(1, math.max(0, limit - #text - #(ctx or "") - 1))
-		ctx = ctx and (ctx .. "\n" .. addition) or addition
+	local ctx
+	if type(opts.cmd) == "string" then
+		ctx = db.settings.context and WoWAI.GameContext(opts.cmd) or ""
+	else
+		ctx = ContextToSend(limit - #text)
 	end
+	ctx = ctx or ""
+	local addition = type(opts.context) == "string" and opts.context or ""
+	-- A command profile or one-off addition is not the base context the bridge caches.
+	local temporaryContext = type(opts.cmd) == "string" or addition ~= ""
+	local contextMax = math.max(0, Codec.MAX_PAYLOAD - 520 - #text)
+	if #ctx > contextMax then ctx = ctx:sub(1, contextMax) end
+	if addition ~= "" then
+		local room = math.max(0, contextMax - #ctx - (ctx ~= "" and 1 or 0))
+		ctx = ctx .. (ctx ~= "" and "\n" or "") .. addition:sub(1, room)
+	end
+	if ctx == "" then ctx = nil end
 
 	db.lastSeq = db.lastSeq + 1
 	local id = db.lastSeq
@@ -1297,7 +1316,7 @@ function WoWAI.Send(text, allow, opts)
 	db.settings.shown = true
 
 	if db.settings.mode == "pixel" then
-		run.outbound[id] = { chat = c.id, cwd = c.cwd, flags = flags, name = c.name, text = text, ctx = ctx, temporaryContext = temporaryContext, sentAt = GetTime() }
+		run.outbound[id] = { chat = c.id, cwd = c.cwd, flags = flags, name = c.name, text = text, ctx = ctx, temporaryContext = temporaryContext, force = opts.force == true or nil, sentAt = GetTime() }
 		run.sentAt = GetTime()
 		run.polls = 0
 		StartActivity(c, id)
@@ -1494,11 +1513,11 @@ function WoWAI.FolderPrompt(id)
 	StaticPopup_Show("WOWAI_FOLDER", run.bridgeCwd or "unknown until connected", nil, { id = c.id, cwd = c.cwd })
 end
 
--- The agent this chat talks to, by id ("claude", "codex", "grok"). Empty (or
+-- The agent this chat talks to, by id. Empty (or
 -- "-" / "default") = the bridge's default. The bridge starts a fresh session
 -- when a chat changes agent, since a session belongs to the agent that made it.
 local function AgentList()
-	return run.bridgeAgents and table.concat(run.bridgeAgents, ", ") or "claude, codex, grok"
+	return run.bridgeAgents and table.concat(run.bridgeAgents, ", ") or "claude, codex, grok, agy, hermes"
 end
 
 function WoWAI.SetAgent(rest, c)
@@ -2675,7 +2694,7 @@ local HELP = table.concat({
 	"/wow-ai rename [name]          rename the current chat (no name = dialog; right-clicking the chat in the left panel offers it too)",
 	"/wow-ai delete                 delete the current chat",
 	"/wow-ai cd <folder>            folder this chat's agent works in (relative to the bridge's folder; no folder = back to default). Right-clicking the chat in the left panel and picking Folder does the same",
-	"/wow-ai agent [name]           which agent this chat talks to: claude, codex or grok (no name = show; default = the bridge's). Right-clicking the chat and picking Agent does the same",
+	"/wow-ai agent [name]           which agent this chat talks to (no name = show; default = the bridge's). Right-clicking the chat and picking Agent does the same",
 	"/wow-ai reset                  next message in this chat starts a fresh agent session",
 	"/wow-ai context [on|off]       what the agent is told about your character and where you are (no argument = show it)",
 	"/wow-ai map [...]              map layers the agent drew, the route navigator and herb/ore nodes (no argument = status and subcommands; /aimap is the same)",
@@ -2751,6 +2770,11 @@ SlashCmdList["WOWAI"] = function(msg)
 	cmd = cmd and cmd:lower() or ""
 	local s = db.settings
 	local c = ActiveChat()
+	if cmd == "help" and rest:lower() == "forever" then
+		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, level, look <question>, council <question>, phone, off, on")
+		WoWAI.Render()
+		return
+	end
 	for _, mod in ipairs(ForeverModules()) do
 		local handler = type(mod.commands) == "table" and mod.commands[cmd]
 		if cmd ~= "" and type(handler) == "function" then pcall(handler, rest, c); return end

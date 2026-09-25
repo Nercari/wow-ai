@@ -17,6 +17,8 @@ module.exports = {
 
 Addon modules call `WoWAIForever.Register(mod)` from a file loaded after `Forever.lua`. Every field is optional: `name`, `commands[word](rest,chat)`, `blocked()` (reason to refuse sends), `context(kind)` (extra context), `onReply(chat,rec)`, `events` plus `onEvent(event,...)`, and `init()`. Errors are isolated with `pcall`. A blocked reason is also shown in chat history; the strip is hidden until unblocked.
 
+Modules can exchange small internal notifications with `WoWAIForever.On(name, fn)` and `WoWAIForever.Fire(name, ...)`. Listener failures are isolated with `pcall`.
+
 ```lua
 WoWAIForever.Register({
   name = "sample",
