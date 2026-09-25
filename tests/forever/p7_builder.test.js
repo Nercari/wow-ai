@@ -53,6 +53,39 @@ test('builder rejects unsafe names and lint failures without writing slots', () 
   assert.equal(fs.readFileSync(path.join(addonDir, 'WoWAI_U01', 'main.lua'), 'utf8'), '-- Reserved for test\n');
 });
 
+test('builder reserves names that prefix WoWAI for try and promote', () => {
+  const { ctx } = fixture();
+  for (const cmd of ['try', 'promote']) {
+    const job = { cmd, text: 'WoW' };
+    builder.intercept(job, ctx);
+    assert.equal(job.result.status, 'error');
+    assert.match(job.result.text, /reserved/);
+  }
+});
+
+test('builder rejects empty, WoWAI, and mismatched toc names', () => {
+  const { staging, ctx } = fixture();
+  source(staging);
+  for (const toc of ['.toc', 'WoWAI.toc', 'Other.toc']) {
+    for (const file of fs.readdirSync(staging)) fs.unlinkSync(path.join(staging, file));
+    fs.writeFileSync(path.join(staging, toc), 'main.lua\n');
+    fs.writeFileSync(path.join(staging, 'main.lua'), 'local ok = true\n');
+    const job = { cmd: 'try', text: 'Demo' };
+    builder.intercept(job, ctx);
+    assert.equal(job.result.status, 'error');
+    assert.match(job.result.text, /\.toc must be named Demo\.toc/);
+  }
+});
+
+test('builder reset is refused while KILLED exists', () => {
+  const { root, ctx } = fixture();
+  fs.writeFileSync(path.join(root, 'KILLED'), '');
+  const job = { cmd: 'builder-reset', text: '' };
+  builder.intercept(job, ctx);
+  assert.equal(job.result.status, 'error');
+  assert.match(job.result.text, /AI is off/);
+});
+
 test('builder consumes fresh slots in TOC order and reports exhaustion', () => {
   const { staging, addonDir, ctx } = fixture();
   source(staging);
@@ -68,7 +101,7 @@ test('builder consumes fresh slots in TOC order and reports exhaustion', () => {
   assert.match(last.result.text, /All 20 test slots/);
 });
 
-test('builder refuses symlinks and promotion collisions, then marks promotion', t => {
+test('builder refuses symlinked staging entries when the OS permits them', t => {
   const { staging, addonDir, ctx } = fixture();
   source(staging);
   try { fs.symlinkSync(path.join(staging, 'main.lua'), path.join(staging, 'linked.lua')); }
@@ -76,7 +109,11 @@ test('builder refuses symlinks and promotion collisions, then marks promotion', 
   const linked = { cmd: 'try', text: 'Demo' };
   builder.intercept(linked, ctx);
   assert.match(linked.result.text, /linked path/);
-  fs.unlinkSync(path.join(staging, 'linked.lua'));
+});
+
+test('builder refuses promotion collisions and marks permitted promotion', () => {
+  const { staging, addonDir, ctx } = fixture();
+  source(staging);
   const dest = path.join(addonDir, 'Demo');
   fs.mkdirSync(dest);
   let job = { cmd: 'promote', text: 'Demo' };
@@ -85,9 +122,11 @@ test('builder refuses symlinks and promotion collisions, then marks promotion', 
   fs.rmSync(dest, { recursive: true });
   fs.mkdirSync(dest);
   fs.writeFileSync(path.join(dest, '.wowai-promoted'), 'marker');
+  fs.writeFileSync(path.join(dest, 'old.lua'), 'stale');
   job = { cmd: 'promote', text: 'Demo' };
   // Promote the staging name as the addon folder.
   job.text = 'Demo';
   builder.intercept(job, ctx);
   assert.ok(fs.existsSync(path.join(dest, '.wowai-promoted')));
+  assert.equal(fs.existsSync(path.join(dest, 'old.lua')), false);
 });

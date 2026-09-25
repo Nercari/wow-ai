@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const os = require('os');
 const { scan } = require('../../../tools/safety-ci');
 
 function fail(ctx, job, message) {
@@ -20,22 +20,28 @@ function loadFiles(name, ctx) {
     if (entry.isSymbolicLink() || !entry.isFile()) throw new Error(`Rejected non-file or linked path: ${entry.name}`);
     const ext = path.extname(entry.name).toLowerCase();
     if (ext === '.xml') throw new Error('XML is not supported by the builder yet.');
-    if (!['.toc', '.lua'].includes(ext)) throw new Error(`Only .toc and .lua files are allowed: ${entry.name}`);
+    if (!['.toc', '.lua'].includes(ext) && entry.name.toLowerCase() !== '.toc') throw new Error(`Only .toc and .lua files are allowed: ${entry.name}`);
     const file = path.resolve(root, entry.name);
     if (!file.startsWith(root + path.sep)) throw new Error(`Path escapes staging directory: ${entry.name}`);
     const content = fs.readFileSync(file, 'utf8');
     bytes += Buffer.byteLength(content);
-    files.set(entry.name, { file, content, hash: crypto.createHash('sha256').update(content).digest('hex') });
+    files.set(entry.name, { file, content });
   }
   if (bytes > 512 * 1024) throw new Error('Staging addon exceeds 512 KB.');
   const tocs = [...files.keys()].filter(file => file.toLowerCase().endsWith('.toc'));
-  if (!tocs.length) throw new Error('Staging addon must contain a .toc file.');
-  const checked = scan([root], { mode: 'untrusted' });
-  if (!checked.ok) throw new Error(`Addon lint failed:\n${checked.findings.map(item => `${item.file}:${item.line} [${item.rule}] ${item.text}`).join('\n')}`);
-  for (const item of files.values()) {
-    const after = fs.readFileSync(item.file, 'utf8');
-    if (crypto.createHash('sha256').update(after).digest('hex') !== item.hash) throw new Error('Staging files changed during lint; retry the build.');
+  if (tocs.length !== 1) throw new Error('Staging addon must contain exactly one .toc file.');
+  if (tocs[0] !== `${name}.toc`) throw new Error(`Staging .toc must be named ${name}.toc (case-sensitive).`);
+  const lintRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wowai-lint-'));
+  const lintFolder = path.join(lintRoot, name);
+  let checked;
+  try {
+    fs.mkdirSync(lintFolder);
+    for (const [file, data] of files) fs.writeFileSync(path.join(lintFolder, file), data.content);
+    checked = scan([lintFolder], { mode: 'untrusted' });
+  } finally {
+    fs.rmSync(lintRoot, { recursive: true, force: true });
   }
+  if (!checked.ok) throw new Error(`Addon lint failed:\n${checked.findings.map(item => `${item.file}:${item.line} [${item.rule}] ${item.text}`).join('\n')}`);
   const toc = files.get(tocs[0]).content;
   const ordered = [];
   for (const line of toc.split(/\r?\n/)) {
@@ -52,6 +58,7 @@ function isKilled(ctx) { return fs.existsSync(path.join(ctx.HERE, 'KILLED')); }
 module.exports = {
   intercept(job, ctx) {
     if (!['try', 'promote', 'builder-reset'].includes(job.cmd)) return false;
+    if (isKilled(ctx)) { fail(ctx, job, 'AI is off. /wowai on to resume.'); return true; }
     if (job.cmd === 'builder-reset') {
       ctx.state.forever = ctx.state.forever || {};
       ctx.state.forever.builder = { used: {} };
@@ -59,23 +66,31 @@ module.exports = {
       ctx.finish(job, 'done', 'Builder slots reset.');
       return true;
     }
-    if (isKilled(ctx)) { fail(ctx, job, 'AI is off. /wowai on to resume.'); return true; }
     const name = String(job.text || '').trim();
     if (!safeName(name)) { fail(ctx, job, 'Invalid addon name. Use a letter followed by up to 39 letters, numbers or underscores.'); return true; }
-    if (name.startsWith('WoWAI')) { fail(ctx, job, 'Names beginning with WoWAI are reserved.'); return true; }
+    if (name.toLowerCase().startsWith('wowai') || 'wowai'.startsWith(name.toLowerCase())) { fail(ctx, job, 'Names beginning with WoWAI are reserved.'); return true; }
     let loaded;
     try { loaded = loadFiles(name, ctx); } catch (error) { fail(ctx, job, error.message); return true; }
     const addons = ctx.cfg.addonDir;
     if (job.cmd === 'promote') {
-      if (name.startsWith('WoWAI')) { fail(ctx, job, 'Names beginning with WoWAI are reserved.'); return true; }
+      if (name.toLowerCase().startsWith('wowai') || 'wowai'.startsWith(name.toLowerCase())) { fail(ctx, job, 'Names beginning with WoWAI are reserved.'); return true; }
       const dest = path.join(addons, name);
-      if (fs.existsSync(dest)) {
-        const info = fs.lstatSync(dest);
+      let destInfo = null;
+      try { destInfo = fs.lstatSync(dest); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      if (destInfo) {
+        const info = destInfo;
         if (!info.isDirectory() || info.isSymbolicLink()) { fail(ctx, job, 'Refusing to promote through a linked or non-directory destination.'); return true; }
         const marker = path.join(dest, '.wowai-promoted');
         let marked = false;
         try { marked = fs.lstatSync(marker).isFile(); } catch {}
         if (!marked) { fail(ctx, job, `Refusing to overwrite unmarked addon folder: ${dest}`); return true; }
+        for (const entry of fs.readdirSync(dest, { withFileTypes: true })) {
+          if (!/\.(lua|toc)$/i.test(entry.name)) continue;
+          const existing = path.join(dest, entry.name);
+          let existingInfo;
+          try { existingInfo = fs.lstatSync(existing); } catch { continue; }
+          if (existingInfo.isFile() && !existingInfo.isSymbolicLink() && !loaded.files.has(entry.name)) fs.unlinkSync(existing);
+        }
       }
       fs.mkdirSync(dest, { recursive: true });
       for (const [file, data] of loaded.files) ctx.atomicWrite(path.join(dest, file), data.content);

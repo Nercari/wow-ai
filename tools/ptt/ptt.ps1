@@ -88,6 +88,10 @@ try {
   $window = [HotKeyWindow]::new([uint32]$Modifiers, [uint32]$Key)
   $window.add_Pressed({
     if (-not $script:recording) {
+      if (Test-Path -LiteralPath (Join-Path $repo 'bridge\KILLED')) {
+        LogError 'Recording blocked: AI kill switch is active.'
+        return
+      }
       $script:recording = $true
       $script:done = $false
       $engine.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)

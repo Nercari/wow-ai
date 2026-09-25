@@ -19,8 +19,9 @@ if (!addons) throw new Error('AddOns directory missing; use --addons <dir>');
 for (let i = 1; i <= 20; i++) {
   const slot = `WoWAI_U${String(i).padStart(2, '0')}`;
   const dir = path.join(addons, slot);
-  if (fs.existsSync(dir)) {
-    const dirInfo = fs.lstatSync(dir);
+  let dirInfo = null;
+  try { dirInfo = fs.lstatSync(dir); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (dirInfo) {
     let markerInfo;
     try { markerInfo = fs.lstatSync(path.join(dir, '.wowai-slot')); } catch {}
     if (!dirInfo.isDirectory() || dirInfo.isSymbolicLink() || !markerInfo ||
