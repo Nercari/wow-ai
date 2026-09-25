@@ -48,3 +48,13 @@ Ctrl+Shift+L (screen question), Ctrl+Shift+X (AI switch); focus and send have no
 suggestion. `/ai keys` lists the current bindings and repeats the suggestion.
 Up/Down recall recent messages in the input; Tab and
 Shift+Tab switch chats.
+
+## Addon builder
+
+Install the 20 LoadOnDemand user slots with `node tools/install-user-slots.js` before starting the client. Stage an addon as a flat directory of `.toc` and `.lua` files under `<mentorDir>/addon-staging/<Name>/`, then use `/ai try <Name>`. The builder applies the untrusted Lua safety scan, refuses links and non-Lua/XML files, and writes the result into a fresh `WoWAI_Uxx` slot. Click **Load <Name>** in the builder frame; WoW must have discovered the slot at client startup. Each slot is used once until `/ai builder reset` (only use reset after restarting the client). The slot code has no SavedVariables; the addon name vararg is the slot's name.
+
+`/ai promote <Name>` copies a linted addon to the regular AddOns folder for loading after the next full client restart. Names beginning with `WoWAI` are reserved, and existing folders are protected unless they carry `.wowai-promoted`. Linting blocks known dynamic code and protected APIs but cannot prove an addon safe: allowed WoW APIs and logic can still misbehave or affect the character within WoW's sandbox.
+
+## Push-to-talk
+
+Run `tools/ptt/ptt.vbs` to start the Windows helper in the background. It defaults to Ctrl+Alt+Space. Install a Windows speech recognizer for `pt-BR` or `en-US`, or pass `-Culture`; `-ListRecognizers` lists available recognizers. Press the hotkey to start dictation and again to stop. Review or edit the transcript in the small overlay, then click Send. The bridge accepts it only when the kill switch is off and the WoW strip was seen in the last ten seconds, then routes it to the most recent chat that sent a normal message. Otherwise it deletes the input and logs why it was dropped. The helper uses RegisterHotKey and never injects keystrokes or interacts with the game window or process.

@@ -13,12 +13,15 @@ async function fixture(t) {
   return dir;
 }
 
-async function untrusted(t, files) {
+async function untrusted(t, files, folderName) {
   const dir = await fixture(t);
+  const toc = Object.keys(files).find((name) => name.toLowerCase().endsWith('.toc'));
+  const addonDir = path.join(dir, folderName || (toc ? toc.slice(0, -4) || 'EmptyToc' : 'Addon'));
+  await fs.mkdir(addonDir);
   for (const [name, content] of Object.entries(files)) {
-    await fs.writeFile(path.join(dir, name), content);
+    await fs.writeFile(path.join(addonDir, name), content);
   }
-  return scan([dir], { mode: "untrusted" });
+  return scan([addonDir], { mode: "untrusted" });
 }
 
 test("repo mode detects forbidden APIs and dynamic Lua code", async (t) => {
@@ -78,6 +81,48 @@ test("untrusted mode permits a clean addon with saved data and slash command", a
   assert.equal(result.ok, true, JSON.stringify(result.findings, null, 2));
 });
 
+test("untrusted mode rejects WoWAI globals from a WoW addon", async (t) => {
+  const result = await untrusted(t, {
+    "WoW.toc": "WoW.lua\n",
+    "WoW.lua": "WoWAIForever = {}\n",
+  });
+  assert.ok(result.findings.some((item) => item.rule === "LUA-RESTRICTED" && item.text.includes("global write WoWAIForever")));
+});
+
+test("untrusted mode rejects reserved SavedVariables in the toc", async (t) => {
+  const result = await untrusted(t, {
+    "Demo.toc": "## SavedVariables: WoWAIDB\n## SavedVariablesPerCharacter: print, string, wOwAiDB\nDemo.lua\n",
+    "Demo.lua": "local ok = true\n",
+  });
+  for (const name of ["WoWAIDB", "print", "string", "wOwAiDB"]) {
+    assert.ok(result.findings.some((item) => item.rule === "TOC-SV" && item.text.includes(name)));
+  }
+});
+
+test("untrusted mode rejects allowlisted global writes despite the addon prefix", async (t) => {
+  const result = await untrusted(t, {
+    "p.toc": "p.lua\n",
+    "p.lua": "print = function() end\n",
+  });
+  assert.ok(result.findings.some((item) => item.rule === "LUA-RESTRICTED" && item.text.includes("global write print")));
+});
+
+test("untrusted mode rejects namespace writes despite the addon prefix", async (t) => {
+  const result = await untrusted(t, {
+    "string.toc": "string.lua\n",
+    "string.lua": "string = {}\n",
+  });
+  assert.ok(result.findings.some((item) => item.rule === "LUA-RESTRICTED" && item.text.includes("global write string")));
+});
+
+test("untrusted mode permits addon globals and saved data", async (t) => {
+  const result = await untrusted(t, {
+    "Demo.toc": "## SavedVariables: DemoDB\nDemo.lua\n",
+    "Demo.lua": "DemoDB = {}\nDemo_Frame = {}\n",
+  });
+  assert.equal(result.ok, true, JSON.stringify(result.findings, null, 2));
+});
+
 const bypasses = [
   ['local run = getfenv(1)["load" .. "string"]', "LUA-RESTRICTED"],
   ['_G["CastSpell".."ByName"]("x")', "LUA-RESTRICTED"],
@@ -116,6 +161,13 @@ test("untrusted mode rejects non-Lua files and missing toc references", async (t
   });
   assert.ok(result.findings.some((item) => item.rule === "FILE-TYPE"));
   assert.ok(result.findings.some((item) => item.rule === "TOC-REF"));
+});
+
+test("untrusted mode rejects empty and mismatched toc names", async (t) => {
+  const empty = await untrusted(t, { ".toc": "Bad.lua\n", "Bad.lua": "local ok = true\n" });
+  assert.ok(empty.findings.some((item) => item.rule === "TOC-NAME"));
+  const mismatch = await untrusted(t, { "Other.toc": "Bad.lua\n", "Bad.lua": "local ok = true\n" }, "Demo");
+  assert.ok(mismatch.findings.some((item) => item.rule === "TOC-NAME"));
 });
 
 test("untrusted mode rejects a missing or empty root", async (t) => {

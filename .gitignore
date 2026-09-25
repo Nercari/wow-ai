@@ -16,5 +16,6 @@ tests/tmp/
 *.zip
 bridge/probe.png
 bridge/mapjobs/
+bridge/ptt/
 __pycache__/
 policy/

@@ -239,6 +239,11 @@ function loadLuaAllowlist(root) {
   return data;
 }
 
+function reservedGlobal(name, allowlist) {
+  return name.toLowerCase().startsWith("wowai") ||
+    allowlist.globals.includes(name) || Object.hasOwn(allowlist.namespaces, name);
+}
+
 function checkLuaAst(file, source, parsed, allowlist, findings, root, metadata) {
   const report = (node, text) =>
     findings.push(
@@ -272,8 +277,9 @@ function checkLuaAst(file, source, parsed, allowlist, findings, root, metadata) 
   const isStringBase = (base) => base?.type === "StringLiteral" ||
     (base?.type === "Identifier" && stringLocals.has(base.name));
   const isGlobalBase = (base) => base?.type === "Identifier" && !base.isLocal;
-  const permittedWrite = (name) => name.startsWith("SLASH_") ||
-    metadata.savedVariables.has(name) || name.startsWith(metadata.addonName);
+  // ponytail: Unlisted Blizzard globals can collide with addon prefixes; use exact addon-table and SavedVariables names if needed.
+  const permittedWrite = (name) => !reservedGlobal(name, allowlist) && (name.startsWith("SLASH_") ||
+    metadata.savedVariables.has(name) || name.startsWith(metadata.addonName));
   const checkWrite = (target) => {
     if (target.type === "Identifier" && !target.isLocal) {
       if (!permittedWrite(target.name)) {
@@ -422,15 +428,23 @@ function scanUntrusted(paths, root, allow, findings) {
       addonName: path.basename(input),
       savedVariables: new Set(),
     };
-    for (const toc of entries.filter((entry) => path.extname(entry.name).toLowerCase() === ".toc")) {
+    const tocs = entries.filter((entry) => entry.name.toLowerCase().endsWith(".toc"));
+    if (tocs.length > 1 || tocs.some(toc => {
+      const base = toc.name.slice(0, -4);
+      return !base || base !== path.basename(input);
+    })) findings.push(finding(input, 1, "TOC-NAME", "expected exactly one .toc named after the addon folder", root));
+    for (const toc of tocs) {
       metadata.addonName = path.basename(toc.name, path.extname(toc.name));
       try {
         const tocSource = fs.readFileSync(path.join(input, toc.name), "utf8");
-        for (const line of tocSource.split(/\r?\n/)) {
+        for (const [index, line] of tocSource.split(/\r?\n/).entries()) {
           const match = line.trim().match(/^##\s*SavedVariables(?:PerCharacter)?:\s*(.*)$/i);
           if (match) {
             match[1].split(",").forEach((name) => {
-              if (name.trim()) metadata.savedVariables.add(name.trim());
+              const savedName = name.trim();
+              if (reservedGlobal(savedName, luaAllow))
+                findings.push(finding(path.join(input, toc.name), index + 1, "TOC-SV", `reserved SavedVariables name ${savedName}`, root));
+              else if (savedName) metadata.savedVariables.add(savedName);
             });
           }
         }
@@ -540,7 +554,7 @@ function scan(
   paths = ["addon", "bridge", "tools", "setup.js"],
   { mode = "repo" } = {},
 ) {
-  const root = process.cwd();
+  const root = path.resolve(__dirname, '..');
   const allow = readAllowlist(root);
   const findings = [];
   const requested = Array.isArray(paths) ? paths : [paths];
