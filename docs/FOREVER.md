@@ -31,3 +31,19 @@ WoWAIForever.Register({
   init = function() end,
 })
 ```
+
+## Look and hotkeys
+
+The optional Forever skin uses WoW's classic dialog and tooltip art. The saved
+`WoWAIForeverDB.skin.enabled`, `sounds`, and `minimap` settings default to true;
+`minimapAngle` stores the button position. `/ai skin on|off` changes the skin
+setting and asks for a reload to apply it. `/ai minimap on|off` controls the
+minimap button. `/ai keys` lists
+bindings; `/ai keys reset` reapplies defaults where keys are free, and `/ai keys
+clear` removes only WoW AI bindings. Binding changes are refused in combat.
+
+Defaults are Ctrl+Shift+A (window), Ctrl+Shift+M (mentor), Ctrl+Shift+R (review),
+Ctrl+Shift+D (death), Ctrl+Shift+L (screen question), and Ctrl+Shift+X (AI
+switch). Focus and send have no default. Defaults apply once and only when the
+key has no existing action. Up/Down recall recent messages in the input; Tab and
+Shift+Tab switch chats.
