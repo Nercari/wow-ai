@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "globals": [
+    "print", "type", "tostring", "tonumber", "pairs", "ipairs", "next",
+    "select", "unpack", "pcall", "error", "assert", "format", "strsplit",
+    "strjoin", "strtrim", "strlower", "strupper", "strlen", "strsub",
+    "gsub", "tinsert", "tremove", "wipe", "date", "time", "GetTime",
+    "CreateFrame", "UIParent", "GameTooltip", "DEFAULT_CHAT_FRAME",
+    "SlashCmdList", "hooksecurefunc", "InCombatLockdown", "IsInInstance",
+    "GetZoneText", "GetSubZoneText", "GetRealZoneText", "UnitName",
+    "UnitLevel", "UnitClass", "UnitRace", "UnitHealth", "UnitHealthMax",
+    "UnitPower", "UnitPowerMax", "UnitExists", "UnitIsDead", "UnitGUID",
+    "GetMoney", "GetCoinTextureString", "GetItemInfo", "GetInventoryItemLink",
+    "GetContainerNumSlots", "GetContainerItemLink", "PlaySound", "SOUNDKIT",
+    "Enum", "GetBuildInfo", "IsShiftKeyDown", "IsControlKeyDown",
+    "IsAltKeyDown", "GetCursorPosition"
+  ],
+  "namespaces": {
+    "math": ["abs", "acos", "asin", "atan", "atan2", "ceil", "cos", "cosh", "deg", "exp", "floor", "fmod", "frexp", "huge", "ldexp", "log", "log10", "max", "min", "modf", "pi", "pow", "rad", "random", "randomseed", "sin", "sinh", "sqrt", "tan", "tanh"],
+    "string": ["byte", "char", "find", "format", "gmatch", "gsub", "len", "lower", "match", "rep", "reverse", "sub", "upper"],
+    "table": ["concat", "insert", "maxn", "remove", "sort"],
+    "C_Timer": ["After", "NewTimer", "NewTicker"],
+    "C_Map": ["GetBestMapForUnit", "GetPlayerMapPosition", "GetMapInfo"],
+    "C_Item": ["GetItemInfo", "GetItemNameByID", "GetDetailedItemLevelInfo"],
+    "C_Container": ["GetContainerNumSlots", "GetContainerItemInfo", "GetContainerItemLink"],
+    "C_QuestLog": ["GetNumQuestLogEntries", "GetInfo", "GetTitleForQuestID"],
+    "C_AddOns": ["GetAddOnMetadata"]
+  }
+}
