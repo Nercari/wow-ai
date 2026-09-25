@@ -88,16 +88,20 @@ test('skin off leaves upstream backdrop and creates no minimap button', () => {
   assert.equal(v.get('WoWAIForeverMinimap == nil'), 'true');
 });
 
-test('keys only use free defaults, skip occupied bindings, and clear owned actions', () => {
+test('keys never bind anything; the hint names free and taken defaults once', () => {
   const v = vm();
-  assert.equal(v.get('STUB.bindings["CTRL-SHIFT-A"]'), 'WOWAI_TOGGLE');
+  assert.equal(v.get('STUB.bindings["CTRL-SHIFT-A"] == nil'), 'true');
   assert.equal(v.get('STUB.bindings["CTRL-SHIFT-R"]'), 'EXISTING_ACTION');
-  assert.match(v.get('table.concat(STUB.prints, " ")'), /skipped \(in use\): CTRL-SHIFT-R/);
-  v.run('STUB.combat = true; SlashCmdList.WOWAI("keys clear")');
-  assert.match(v.get('STUB.prints[#STUB.prints]'), /combat/);
-  v.run('STUB.combat = false; STUB.FireEvent("PLAYER_REGEN_ENABLED"); SlashCmdList.WOWAI("keys clear")');
-  assert.equal(v.get('STUB.bindings["CTRL-SHIFT-A"]'), 'nil');
-  assert.equal(v.get('STUB.bindings["CTRL-SHIFT-R"]'), 'EXISTING_ACTION');
+  const all = v.get('table.concat(STUB.prints, " ")');
+  assert.match(all, /Keybindings > AddOns > WoW AI/);
+  assert.match(all, /Suggested \(free\): Ctrl\+Shift\+A Open or close the AI window/);
+  assert.match(all, /Already in use: Ctrl\+Shift\+R Review my last fight/);
+  assert.equal(v.get('WoWAIForeverDB.keys.hinted'), '1');
+  const before = Number(v.get('#STUB.prints'));
+  v.run('for _, mod in ipairs(WoWAIForever.modules) do if mod.name == "keys" then mod.init() end end');
+  assert.equal(Number(v.get('#STUB.prints')), before);
+  v.run('STUB.bindings["CTRL-SHIFT-A"] = "WOWAI_TOGGLE"; SlashCmdList.WOWAI("keys")');
+  assert.match(v.get('table.concat(STUB.prints, " ")'), /Open or close the AI window: CTRL-SHIFT-A/);
 });
 
 test('bindings XML names each known action and input cycles chats and message history', () => {
@@ -118,16 +122,4 @@ test('bindings XML names each known action and input cycles chats and message hi
   assert.match(v.get('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text'), /AI paused in combat/);
   v.run('WoWAI.NewChat("second"); WoWAIInput.scripts.OnTabPressed(WoWAIInput)');
   assert.equal(v.get('WoWAIDB.chats[1].id == WoWAIDB.activeChat'), 'true');
-});
-
-test('defaults wait for combat to end and apply only once', () => {
-  const v = vm(true, '', true);
-  assert.equal(v.get('WoWAIForeverDB.keys.applied == nil'), 'true');
-  assert.equal(v.get('STUB.bindings["CTRL-SHIFT-A"] == nil'), 'true');
-  v.run('STUB.combat = false; STUB.FireEvent("PLAYER_REGEN_ENABLED")');
-  assert.equal(v.get('WoWAIForeverDB.keys.applied'), '1');
-  assert.equal(v.get('STUB.bindings["CTRL-SHIFT-A"]'), 'WOWAI_TOGGLE');
-  const before = Number(v.get('#STUB.prints'));
-  v.run('for _, mod in ipairs(WoWAIForever.modules) do if mod.name == "keys" then mod.init() end end');
-  assert.equal(Number(v.get('#STUB.prints')), before);
 });

@@ -49,47 +49,24 @@ function WoWAIForeverKeys.Run(action)
 	end
 end
 
-local function Apply(reset)
-	if InCombatLockdown() then return false end
-	if type(GetBindingAction) ~= "function" or type(SetBinding) ~= "function"
-		or type(SaveBindings) ~= "function" or type(GetCurrentBindingSet) ~= "function" then
-		return false
-	end
-	local skipped, bound = {}, {}
-	local labels = {
-		toggle = "window", mentor = "mentor", review = "review", death = "death",
-		look = "screen question", switch = "AI switch",
-	}
-	for action, spec in pairs(actions) do
-		local key = spec[2]
-		if key then
-			local current = GetBindingAction(key)
-			if reset then
-				if current == "" or current == nil or (type(current) == "string" and current:match("^WOWAI_")) then
-					SetBinding(key, "WOWAI_" .. action:upper())
-					table.insert(bound, key .. " " .. labels[action])
-				else
-					table.insert(skipped, key)
-				end
-			elseif current == "" or current == nil then
-				SetBinding(key, "WOWAI_" .. action:upper())
-				table.insert(bound, key .. " " .. labels[action])
-			else
-				table.insert(skipped, key)
-			end
+-- The addon never binds keys itself (safety CI forbids SetBinding outside upstream code):
+-- Bindings.xml lists the actions under Key Bindings > AddOns > WoW AI, and this suggests free keys.
+local order = { "toggle", "mentor", "review", "death", "look", "switch", "focus", "send" }
+local function Hint()
+	local free, taken = {}, {}
+	for _, action in ipairs(order) do
+		local key = actions[action][2]
+		local current = key and type(GetBindingAction) == "function" and GetBindingAction(key) or ""
+		if key and current ~= "WOWAI_" .. action:upper() then
+			local label = key:gsub("CTRL%-", "Ctrl+"):gsub("SHIFT%-", "Shift+") .. " " .. actions[action][1]
+			table.insert((current == "" or current == nil) and free or taken, label)
 		end
 	end
-	SaveBindings(GetCurrentBindingSet()); DB().applied = 1
-	local names = { A = "a", D = "d", L = "l", M = "m", R = "r", X = "x" }
-	for i, item in ipairs(bound) do
-		local key, label = item:match("^(.-) (.+)$")
-		local letter = key and key:match("%-([A-Z])$")
-		if letter then bound[i] = "Ctrl+Shift+" .. (names[letter] or letter:lower()):upper() .. " " .. label end
-	end
-	local message = "WoW AI hotkeys: " .. table.concat(bound, ", ")
-	if #skipped > 0 then message = message .. "; skipped (in use): " .. table.concat(skipped, ", ") end
+	if #free + #taken == 0 then return end
+	local message = "WoW AI hotkeys: bind them in Options > Keybindings > AddOns > WoW AI."
+	if #free > 0 then message = message .. " Suggested (free): " .. table.concat(free, ", ") .. "." end
+	if #taken > 0 then message = message .. " Already in use: " .. table.concat(taken, ", ") .. "." end
 	print(message)
-	return true
 end
 
 local function HistoryInput(parts)
@@ -142,35 +119,17 @@ local function HistoryInput(parts)
 end
 
 WoWAIForever.On("UI_BUILT", HistoryInput)
-WoWAIForever.Register({ name = "keys", events = { PLAYER_LOGIN = true, PLAYER_REGEN_ENABLED = true },
+WoWAIForever.Register({ name = "keys", events = { PLAYER_LOGIN = true },
 	init = function()
-		if DB().applied then return end
-		if InCombatLockdown() then DB().waiting = true else Apply(false) end
+		if DB().hinted then return end
+		DB().hinted = 1
+		Hint()
 	end,
-	onEvent = function(event)
-		if event == "PLAYER_REGEN_ENABLED" and DB().waiting then DB().waiting = nil; Apply(false) end
-	end,
-	commands = { keys = function(rest)
-		local keydb = DB()
-		if InCombatLockdown() then print("Can't change key bindings in combat"); return end
-		if rest == "clear" then
-			if type(GetBindingKey) ~= "function" or type(SetBinding) ~= "function"
-				or type(SaveBindings) ~= "function" or type(GetCurrentBindingSet) ~= "function" then
-				return
-			end
-			for action in pairs(actions) do
-				local keys = { GetBindingKey("WOWAI_" .. action:upper()) }
-				for _, key in ipairs(keys) do SetBinding(key) end
-			end
-			SaveBindings(GetCurrentBindingSet())
-			keydb.applied = nil
-			print("WoW AI hotkeys cleared")
-		elseif rest == "reset" then Apply(true)
-		else
-			for action in pairs(actions) do
-				local keys = {}
-				if type(GetBindingKey) == "function" then keys = { GetBindingKey("WOWAI_" .. action:upper()) } end
-				print(action .. ": " .. (#keys > 0 and table.concat(keys, ", ") or "unbound"))
-			end
+	commands = { keys = function()
+		for _, action in ipairs(order) do
+			local keys = {}
+			if type(GetBindingKey) == "function" then keys = { GetBindingKey("WOWAI_" .. action:upper()) } end
+			print(actions[action][1] .. ": " .. (#keys > 0 and table.concat(keys, ", ") or "unbound"))
 		end
+		Hint()
 	end } })
