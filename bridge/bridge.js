@@ -192,6 +192,7 @@ function forgetChat(job) {
 
 let lastMtime = 0;
 const running = new Map(); // chatKey -> { job, child }
+const owned = new Set(); // session#id of jobs a Forever module is handling
 const queued = new Map();  // chatKey -> job waiting for that chat (or for a free parallel slot)
 const live = new Map();    // chatKey -> latest record shown to the game
 let lastPublish = 0;
@@ -451,7 +452,7 @@ function runAgentOnce(options) {
   const started = Date.now();
   Forever.onRun({ job: { chat: options.chat || 'council', cwd: options.cwd, text: options.prompt }, agentId: options.agentId,
     cwd: options.cwd, prompt: String(options.prompt || ''), promptBytes: Buffer.byteLength(String(options.prompt || '')) });
-  return runAgent(options, { A, P, cfg, killTree }).then(result => { result.elapsedMs = Date.now() - started; return result; });
+  return runAgent(options, { A, P, cfg, killTree, augment: (job, info) => Forever.augment(job, info) }).then(result => { result.elapsedMs = Date.now() - started; return result; });
 }
 
 // ---------------------------------------------------------------------------
@@ -485,13 +486,21 @@ function submit(job) {
     log(`hello from session ${job.session}${pendingRestore ? ' (restore offered)' : ''}`);
     return;
   }
+  // A module owns this job until finish() marks it handled: the strip and the
+  // reload outbox keep showing it meanwhile, and it must not start twice.
+  const owner = `${job.session || ''}#${job.id}`;
+  if (owned.has(owner)) return;
+  // Ack even a job the module already finished, so the addon stops re-sending it.
+  const claim = () => { if (!job.finished) owned.add(owner); signal('ack', job.id, true); };
   let ownership;
   try { ownership = Forever.intercept(job); } catch (e) { log('forever intercept failed:', e.message); }
   if (ownership && typeof ownership.then === 'function') {
-    ownership.then(owned => { if (!owned) queueJob(job); }, e => { log('forever intercept failed:', e.message); queueJob(job); });
+    owned.add(owner);
+    ownership.then(yes => { if (yes) claim(); else { owned.delete(owner); queueJob(job); } },
+      e => { log('forever intercept failed:', e.message); owned.delete(owner); queueJob(job); });
     return;
   }
-  if (ownership) return;
+  if (ownership) { claim(); return; }
   queueJob(job);
 }
 
@@ -723,6 +732,7 @@ function finish(job, status, text, session, denied) {
   if (job.finished) return; // spawn failures fire both 'error' and 'close'
   Forever.onFinish(job, status, text);
   job.finished = true;
+  owned.delete(`${job.session || ''}#${job.id}`);
   running.delete(chatKey(job));
   markHandled(job);
   saveState();
@@ -834,7 +844,7 @@ function banner() {
 
 banner();
 Forever.load(path.join(HERE, 'forever', 'modules'), cfg.forever && cfg.forever.disabled || []);
-Forever.init({ cfg, log, HERE, REPO, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce,
+Forever.init({ cfg, log, HERE, REPO, SAVED_VARS, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce,
   capture: { stop: stopCapture, start: startCapture, running: captureRunning },
   transcript: chat => {
     const messages = transcripts.chats[chat] && transcripts.chats[chat].messages || [];

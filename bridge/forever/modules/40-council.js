@@ -1,7 +1,12 @@
 'use strict';
 module.exports = {
-  async intercept(job, ctx) {
+  // Claim the job at once so the bridge acks it; the council itself takes minutes.
+  intercept(job, ctx) {
     if (job.cmd !== 'council') return false;
+    this.run(job, ctx).catch(err => ctx.finish(job, 'error', `Council failed: ${err.message}`));
+    return true;
+  },
+  async run(job, ctx) {
     const opts = ctx.cfg.forever.council || {};
     const ids = (opts.agents || ['claude', 'codex']).filter(id => ctx.cfg.agents && ctx.cfg.agents[id]);
     const prompt = String(job.text || '').replace(/^\[wowai cmd=council\]\n/, '');

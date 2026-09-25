@@ -64,7 +64,9 @@ function parse(src) {
           if (src[j] === '=') { key = id[0]; i = j + 1; explicit = true; } }
       }
       if (!explicit) key = index++;
-      obj[key] = value(); ws();
+      const v = value(); ws();
+      // Our SavedVariables never use __proto__; assigning it would swap the object's prototype.
+      if (key !== '__proto__') obj[key] = v;
       if (src[i] === ',') { i++; continue; }
       if (src[i] === ';') { i++; continue; }
       if (src[i] !== '}') fail('expected comma or }');

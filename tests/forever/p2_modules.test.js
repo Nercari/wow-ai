@@ -41,6 +41,13 @@ test('command prefix and mentor argument rewrites', () => {
     ['--mode', 'accept-edits', '--add-dir', '/mentor']);
   assert.ok(!mentor.rewrite('grok', ['--always-approve'], '/mentor', '/repo').includes('--always-approve'));
   assert.deepEqual(mentor.rewrite('hermes', ['-y', '--yolo=1'], '/mentor', '/repo'), ['--in', '/mentor']);
+  // codex exec keeps its trailing `resume <id> -` positionals last.
+  assert.deepEqual(mentor.rewrite('codex', ['exec', '--json', '-C', '/old', '--dangerously-bypass-approvals-and-sandbox', 'resume', 'abc', '-'], '/mentor', '/repo'),
+    ['exec', '--json', '-s', 'workspace-write', '-C', '/mentor', 'resume', 'abc', '-']);
+  // grok loses any configured allow rule, Bash(*) included.
+  const grok = mentor.rewrite('grok', ['--allow', 'Bash(*)', '--permission-mode', 'acceptEdits'], '/mentor', '/repo');
+  assert.ok(!grok.includes('Bash(*)') && grok.includes('Read') && grok.includes('dontAsk'));
+  if (process.platform === 'win32') assert.ok(mentor.inside('C:/WoW-Mentor/x', 'c:/wow-mentor'));
   assert.deepEqual(mentor.rewrite('hermes', ['--yolo'], '/mentor', '/repo'), ['--in', '/mentor']);
 });
 
@@ -98,8 +105,11 @@ test('council owns the job and tolerates agent timeout', async () => {
   const ctx = { cfg: { agents: { claude: {}, codex: {} }, forever: { council: { agents: ['claude', 'codex'], timeoutMs: 1, synthesizer: 'claude' } } },
     async runAgentOnce(o) { calls.push(o); return o.agentId === 'codex' ? { status: 'error', text: 'timeout' } : { status: 'done', text: 'answer' }; },
     finish(job, status, text) { this.result = text; } };
-  assert.equal(await council.intercept({ cmd: 'council', text: '[wowai cmd=council]\nquestion', cwd: '.' }, ctx), true);
-  assert.equal(calls.length, 3);
+  const job = { cmd: 'council', text: '[wowai cmd=council]\nquestion', cwd: '.' };
+  // The claim is synchronous so the bridge can ack before the agents answer.
+  assert.equal(council.intercept(job, ctx), true);
+  await council.run(job, ctx);
+  assert.equal(calls.length, 6);
   assert.match(ctx.result, /Missing: codex/);
 });
 
@@ -134,4 +144,12 @@ test('phone notifier invokes a fake node script with argv and never Hermes', asy
   phone.onFinish({ chat: 'abc', cmd: '', startedAt: Date.now() - 100 }, 'done', 'short answer', ctx);
   for (let i = 0; i < 30 && !fs.existsSync(argsFile); i++) await new Promise(resolve => setTimeout(resolve, 20));
   assert.deepEqual(JSON.parse(fs.readFileSync(argsFile, 'utf8')), ['send', '-t', 'telegram:42', '-q', 'abc: done — short answer']);
+});
+
+test('lua table parser ignores __proto__ keys', () => {
+  const { parseGlobal } = require('../../bridge/forever/lua-table');
+  const t = parseGlobal('X = { ["__proto__"] = { a = 1 }, b = 2 }', 'X');
+  assert.equal(Object.getPrototypeOf(t), Object.prototype);
+  assert.equal(t.b, 2);
+  assert.equal(t.a, undefined);
 });

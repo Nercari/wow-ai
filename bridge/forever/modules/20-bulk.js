@@ -8,7 +8,7 @@ module.exports = {
     let root;
     try { root = lua.parseGlobal(src, 'WoWAI_Bulk'); this.tries = 0; }
     catch (err) {
-      if (this.tries++ < 2) setTimeout(() => { try { this.onSavedVariables(fs.readFileSync(ctx.cfg.savedVariablesFile, 'utf8'), ctx); } catch {} }, 2000);
+      if (this.tries++ < 2) setTimeout(() => { try { this.onSavedVariables(fs.readFileSync(ctx.SAVED_VARS, 'utf8'), ctx); } catch {} }, 2000);
       return;
     }
     if (!root) return;

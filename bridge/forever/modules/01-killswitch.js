@@ -31,7 +31,4 @@ module.exports = {
     }
     return false;
   },
-  onFinish(job, status, text, ctx) {
-    if (this.off && job.cmd !== 'on' && job.cmd !== 'off') return;
-  },
 };

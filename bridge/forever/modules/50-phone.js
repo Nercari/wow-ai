@@ -2,11 +2,14 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const A = require('../../agents');
 function send(command, target, text, ctx) {
   return new Promise(resolve => {
     const args = ['send', '-t', target, '-q', text];
     const script = /\.m?js$/i.test(command);
-    const child = spawn(script ? process.execPath : command, script ? [command, ...args] : args,
+    // The default hermes goes through the same lookup as the chat agent (.exe or unwrapped .cmd shim).
+    const r = command === 'hermes' ? A.resolveCommand('hermes', (ctx.cfg.agents || {}).hermes || {}) : { file: command, args: [] };
+    const child = spawn(script ? process.execPath : r.file, script ? [command, ...args] : [...r.args, ...args],
       { windowsHide: true, stdio: 'ignore' });
     const timer = setTimeout(() => { child.kill(); resolve(false); }, 20000);
     child.on('error', err => { clearTimeout(timer); ctx.log('phone notifier:', err.message); resolve(false); });
@@ -46,7 +49,7 @@ module.exports = {
     if (!phone.target) { ctx.finish(job, 'error', 'Phone notifications are off.'); return true; }
     const summary = ctx.transcript ? ctx.transcript(job.chat) : '';
     send(phone.command || 'hermes', phone.target, `Continue on your phone: chat ${job.chat}, folder ${job.cwd}. Summary: ${summary}`, ctx)
-      .then(() => ctx.finish(job, 'done', 'Sent to your phone.'));
+      .then(ok => ctx.finish(job, ok ? 'done' : 'error', ok ? 'Sent to your phone.' : 'Could not reach your phone (hermes send failed).'));
     return true;
   },
   stop() { if (this.timer) clearInterval(this.timer); },

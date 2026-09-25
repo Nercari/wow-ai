@@ -1,7 +1,9 @@
 'use strict';
 const path = require('path');
 function inside(cwd, root) {
-  const rel = path.relative(path.resolve(root), path.resolve(cwd));
+  // Windows paths are case-insensitive; path.relative is not.
+  const norm = p => process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p);
+  const rel = path.relative(norm(root), norm(cwd));
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 function setOption(args, names, values) {
@@ -24,13 +26,20 @@ function rewrite(agent, args, cwd, repo) {
     }
     args.push('--allowedTools', 'Read', 'Grep', 'Glob', 'Edit', 'Write', 'WebFetch', 'WebSearch', `Bash(node ${path.join(repo, 'tools', 'slice-fight.js')}:*)`);
   } else if (agent === 'codex') {
+    // codex exec ends with its prompt positional `[resume <id>] -`; options go before it.
+    const dash = args.lastIndexOf('-');
+    const tail = dash < 0 ? [] : args.splice(args[dash - 2] === 'resume' ? dash - 2 : dash);
     setOption(args, ['-s', '--sandbox'], ['-s', 'workspace-write']);
     setOption(args, ['-C'], ['-C', cwd]);
+    args.push(...tail);
   } else if (agent === 'agy') {
     setOption(args, ['--mode'], ['--mode', 'accept-edits']);
     setOption(args, ['--add-dir'], ['--add-dir', cwd]);
   } else if (agent === 'grok') {
     setOption(args, ['--permission-mode'], ['--permission-mode', 'dontAsk']);
+    // ponytail: no Bash rule, so grok mentor chats can't run the slicer; add one if grok becomes a reviewer.
+    for (let i = args.length - 2; i >= 0; i--) if (args[i] === '--allow') args.splice(i, 2);
+    for (const rule of ['Read', 'Grep', 'Edit']) args.push('--allow', rule);
   } else if (agent === 'hermes') {
     setOption(args, ['--in'], ['--in', cwd]);
   }

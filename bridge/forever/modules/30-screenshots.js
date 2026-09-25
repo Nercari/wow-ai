@@ -28,7 +28,8 @@ module.exports = {
     if (agent === 'agy') { ctx.finish(job, 'error', 'Antigravity chats can\'t take images yet; switch this chat to claude, codex or hermes.'); return true; }
     this.newest = latest(this.dir);
     // Only a screenshot taken for this question; an old one may show something unrelated.
-    const fresh = this.newest && Date.now() - fs.statSync(this.newest).mtimeMs < 10 * 60000;
+    let fresh = false;
+    try { fresh = !!this.newest && Date.now() - fs.statSync(this.newest).mtimeMs < 10 * 60000; } catch {}
     if (!fresh) { ctx.finish(job, 'error', 'No screenshot in the last 10 minutes: press Print Screen first.'); return true; }
     job.images = [this.newest]; return false;
   },
