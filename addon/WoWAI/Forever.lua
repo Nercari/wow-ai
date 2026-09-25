@@ -11,6 +11,9 @@ end
 function WoWAIForever.Fire(name, ...)
 	for _, fn in ipairs(WoWAIForever.listeners[name] or {}) do pcall(fn, ...) end
 end
+function WoWAIForever.GetChats()
+	return (WoWAIDB and WoWAIDB.chats) or {}
+end
 local frame = CreateFrame("Frame")
 local function WantsEvent(events, event)
 	if type(events) ~= "table" then return false end
