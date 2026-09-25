@@ -6,6 +6,7 @@ Cited background for coaching. Each file starts with `topic / applies-to / fetch
 |---|---|---|
 | `versions-and-forever.md` | What WoW: Forever is (Blizzard's vanilla-based Classic+, level 60, launch 2026-11-04, beta build 1.60.x, interface 16001) and every other live flavor; which sources are current for which | all |
 | `mechanics-classic.md` | Attack tables, hit/weapon skill, armor, spell resists, threat, GCD, batching, swing timer, regen, DR, interrupts, Hardcore safety; log checks per mechanic | Classic Era / Hardcore / SoD / Forever (label "may differ in Forever") |
+| `../../tools/theorycraft.js` | Deterministic DPS/EH estimates, stat weights, and build/gear comparisons; check its coefficient warnings and Forever overrides | Classic assumptions |
 | `classes-classic.md` | All 9 classes: roles, priorities, cooldowns, stats, leveling, log-visible mistakes, consumables | Classic-era |
 | `mechanics-retail.md` | Midnight 12.1 Season 2: stats and DR, hero talents, M+ rules, raid, delves, gearing, addon combat restrictions | Retail |
 | `specs-retail.md` | Every Retail spec: priority, cooldowns, top review checks, guide links; meta snapshot (VOLATILE) | Retail |

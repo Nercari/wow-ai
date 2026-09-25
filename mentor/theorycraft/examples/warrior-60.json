@@ -1,0 +1,25 @@
+{
+  "class": "Warrior",
+  "level": 60,
+  "role": "melee",
+  "stats": { "str": 240, "agi": 60, "critPct": 10, "hitPct": 9, "weaponSkill": 300 },
+  "gear": { "ap": 120 },
+  "target": { "level": 63, "armor": 3731 },
+  "dualWield": true,
+  "fromFront": false,
+  "weapon": {
+    "min": 80,
+    "max": 120,
+    "speed": 2.6,
+    "offhand": { "min": 45, "max": 75, "speed": 1.8 }
+  },
+  "abilities": [
+    { "name": "Main-hand swing", "kind": "white" },
+    { "name": "Off-hand swing", "kind": "white", "hand": "off" },
+    { "name": "Bloodthirst", "kind": "yellow", "baseMin": 500, "cooldown": 6, "cost": 30 }
+  ],
+  "mods": [
+    { "name": "Cruelty", "critPct": 5 },
+    { "name": "Impale", "critDamagePct": 20, "appliesTo": ["yellow"] }
+  ]
+}

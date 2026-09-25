@@ -1,5 +1,7 @@
 # Forever extension hooks
 
+The mentor's deterministic theorycraft calculator is `tools/theorycraft.js`; scenarios live in its mentor theorycraft folder and report coefficient provenance.
+
 Bridge modules live in `bridge/forever/modules/*.js`, load by filename, and can be disabled by basename in `forever.disabled`. Throwing hooks are logged and skipped. `intercept(job, ctx)` runs after dedup for ordinary jobs; a truthy result owns the job and must eventually call `ctx.finish`. `augment(job, runInfo, ctx)` is synchronous and may edit `args`, `input.stdin`, or `env`. `onRun` runs after spawn; `onFinish` runs from finish; `stop` runs on process exit.
 
 Bridge `ctx` exposes `cfg`, `log`, `HERE`, `REPO`, `state`, `saveState`, `atomicWrite`, `submit(job)`, `finish(job,status,text)`, `publish(key,record,urgent)`, `chatKey(job)`, and `runAgentOnce({agentId,cwd,prompt,timeoutMs})`, which resolves to `{status,text}` without changing a chat transcript or session.
