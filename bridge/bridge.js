@@ -133,6 +133,7 @@ if (!transcripts.chats) transcripts.chats = {};
 if (!transcripts.tokens) transcripts.tokens = {};
 if (P.pruneStale(state, transcripts)) { saveState(); saveTranscripts(); }
 let pendingRestore = null;
+let stripSeenAt = 0;
 
 function saveTranscripts() {
   try { atomicWrite(TRANSCRIPT_FILE, JSON.stringify(transcripts)); } catch (e) { log('could not save transcripts:', e.message); }
@@ -792,6 +793,7 @@ function startCapture() {
     if (ev.warn) { log('capture:', ev.warn); return; }
     if (ev.error) { log('capture error:', ev.error); return; }
     if (typeof ev.id === 'number') {
+      stripSeenAt = Date.now();
       const jobs = jobsFromStrip(ev.id, ev.text);
       log(`strip #${ev.id}: ${jobs.length} message(s)`);
       for (const job of jobs) submit(job);
@@ -845,6 +847,7 @@ function banner() {
 banner();
 Forever.load(path.join(HERE, 'forever', 'modules'), cfg.forever && cfg.forever.disabled || []);
 Forever.init({ cfg, log, HERE, REPO, SAVED_VARS, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce,
+  lastStripSeenAt: () => stripSeenAt,
   capture: { stop: stopCapture, start: startCapture, running: captureRunning },
   transcript: chat => {
     const messages = transcripts.chats[chat] && transcripts.chats[chat].messages || [];

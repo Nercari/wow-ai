@@ -48,6 +48,14 @@ If you have several WoW accounts, setup picks the first and says so; pass `--acc
 
 Now **fully quit and relaunch World of Warcraft** (a `/reload` is not enough, the new files have to be there at launch). On the character screen, open **AddOns** and make sure *WoW AI* is enabled. The 200 *WoW AI slot* entries stay enabled too; leave them alone.
 
+For the addon builder, install its 20 LoadOnDemand test slots **before starting the client**:
+
+```powershell
+node tools/install-user-slots.js
+```
+
+These slots must be discovered at client startup before `/ai try <Name>` can load one.
+
 ## 4. First run
 
 From the `wow-ai` folder:

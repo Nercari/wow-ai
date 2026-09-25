@@ -540,7 +540,7 @@ function scan(
   paths = ["addon", "bridge", "tools", "setup.js"],
   { mode = "repo" } = {},
 ) {
-  const root = process.cwd();
+  const root = path.resolve(__dirname, '..');
   const allow = readAllowlist(root);
   const findings = [];
   const requested = Array.isArray(paths) ? paths : [paths];
