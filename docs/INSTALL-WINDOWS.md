@@ -109,6 +109,10 @@ The banner's `folder` line now says `started here`, and every chat that hasn't c
 
 Leave the window open while you play. Ctrl+C stops it. It restarts itself if it ever crashes.
 
+### Running hidden
+
+Run `bridge\start-hidden.vbs` to start the bridge without a console window. Pass an optional project folder as an argument, for example `wscript.exe bridge\start-hidden.vbs --project "C:\work\game"`. To stop only this bridge, run `bridge\wowai-kill.vbs`; it matches Node command lines for this repo's `bridge\supervisor.js` or `bridge\bridge.js` and writes `bridge\KILLED` for the bridge to observe.
+
 ### Updating
 
 ```powershell
