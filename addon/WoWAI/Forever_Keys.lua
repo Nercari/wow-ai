@@ -130,6 +130,7 @@ local function HistoryInput(parts)
 	end)
 	input:SetScript("OnTabPressed", function(self)
 		local list = WoWAI.internal.Chats()
+		if #list == 0 then return end
 		local current = WoWAI.internal.ActiveChat()
 		local index = 1
 		for i, c in ipairs(list) do if current and c.id == current.id then index = i end end

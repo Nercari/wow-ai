@@ -4,6 +4,8 @@
 -- SetFoo/EnableBar call is accepted; lowercase names are ordinary fields.
 --
 -- STUB collects what the addon did: frames, texts, timers, tickers, prints.
+-- The client runs Lua 5.1, where unpack is a global.
+unpack = unpack or table.unpack
 
 STUB = {
 	frames = {}, texts = {}, timers = {}, tickers = {}, prints = {}, bindings = {},

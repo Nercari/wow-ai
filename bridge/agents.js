@@ -50,7 +50,13 @@ function empty() { return { progress: [], denied: [], notes: [] }; }
 // Rules are written in Claude Code's syntax everywhere (config.json, the Allow
 // button): `Bash(git:*)` = any command starting with git, `WebSearch` = a tool.
 // Grok's rules are globs, so `git:*` becomes `git *` plus the bare `git`.
+// A permission rule is a CLI argument value; one starting with '-' would be parsed as an option.
+function isRule(rule) {
+  return typeof rule === 'string' && rule.trim() !== '' && !rule.trim().startsWith('-');
+}
+
 function grokRules(rule) {
+  if (!isRule(rule)) return [];
   const m = /^Bash\(([^\s:()]+):\*\)$/.exec(String(rule || '').trim());
   if (m) return [`Bash(${m[1]} *)`, `Bash(${m[1]})`];
   return rule ? [String(rule).trim()] : [];
@@ -348,9 +354,9 @@ const AGENTS = {
     posixPaths: () => [path.join(os.homedir(), '.local', 'bin', 'claude')],
     args({ cfg, resume, system }) {
       const a = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', cfg.permissionMode || 'acceptEdits'];
-      const rules = Array.isArray(cfg.allowedTools) ? cfg.allowedTools.filter(Boolean) : [];
+      const rules = Array.isArray(cfg.allowedTools) ? cfg.allowedTools.filter(isRule) : [];
       if (rules.length) a.push('--allowedTools', ...rules);
-      const denied = Array.isArray(cfg.deniedTools) ? cfg.deniedTools.filter(Boolean) : [];
+      const denied = Array.isArray(cfg.deniedTools) ? cfg.deniedTools.filter(isRule) : [];
       if (denied.length) a.push('--disallowedTools', ...denied);
       if (cfg.model) a.push('--model', cfg.model);
       if (resume) a.push('--resume', resume);

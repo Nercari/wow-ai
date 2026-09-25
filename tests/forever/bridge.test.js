@@ -31,8 +31,12 @@ test('runAgentOnce spawns and parses an agent without bridge chat state', async 
     const script = path.join(dir, 'fake-claude.js');
     fs.writeFileSync(script, `process.stdout.write(JSON.stringify({ type: "result", session_id: "unused-session", is_error: false, result: "isolated answer" }) + "\\n");`);
     const cfg = { agents: { claude: { path: script } }, timeoutMs: 3000 };
-    const result = await runAgentOnce({ agentId: 'claude', cwd: dir, prompt: 'hello' }, { A, P, cfg, killTree: child => child.kill() });
+    const seen = [];
+    const augment = (job, info) => { seen.push(job.cwd); info.args = info.args.filter(x => x !== '--dangerously-skip-permissions'); };
+    const result = await runAgentOnce({ agentId: 'claude', cwd: dir, prompt: 'hello' }, { A, P, cfg, killTree: child => child.kill(), augment });
     assert.deepEqual(result, { status: 'done', text: 'isolated answer' });
+    // One-off runs (council, journal) go through the same mentor guard as chats.
+    assert.deepEqual(seen, [dir]);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -137,3 +137,22 @@ All of these are gitignored.
 | `--account <name>` | Which `WTF\Account\<name>` to use when there are several. |
 
 Re-running `setup.js` re-copies the addon (except `Inbox.lua`, which the bridge owns once running), keeps an existing `config.json` (adding the `agents` blocks and fixing paths if it predates them), and only creates slot and signal files that are missing. An install under the project's old name (the `WoWClaude` addon) is migrated: its saved data is copied to `WoWAI.lua` so chats survive, and the old addon and slot folders are removed.
+
+## Forever bridge modules
+
+Keys under `forever` configure the bridge side of Forever modules. `disabled` skips module basenames.
+
+| Key | Default | Purpose |
+|---|---|---|
+| `mentorDir` | `<repo>/../wow-mentor` | Mentor project root; its chats receive mentor agent restrictions. |
+| `clientDir` | Derived from `addonDir` | WoW client root used for screenshot and journal paths. |
+| `screenshotsDir` | `<clientDir>/Screenshots` | Screenshot scan and watch directory. |
+| `journal.enabled` | `true` | Generate a journal story on logout bulk data. |
+| `journal.dir` | `<mentorDir>/journal` | Output directory for daily journal stories. |
+| `journal.agent` | Empty (uses `agent`) | Optional agent override for journal generation. |
+| `council.agents` | `["claude", "codex"]` | Agents that answer council questions. Unconfigured ids are skipped. |
+| `council.synthesizer` | `"claude"` | Agent that synthesizes council answers. |
+| `council.timeoutMs` | `240000` | Per-agent council timeout. |
+| `phone.target` | `""` | Notification destination, such as `telegram` or `telegram:<chat>`; empty disables it. |
+| `phone.command` | `"hermes"` | Executable used for phone sends. |
+| `phone.notifyAfterMs` | `60000` | Minimum run time before ordinary completion notifications are sent. |

@@ -40,6 +40,7 @@ const LOG_FILE = path.join(HERE, 'bridge.log');
 const TMP_DIR = path.join(HERE, 'tmp'); // prompt files for agents that read the prompt from disk
 
 const argv = process.argv.slice(2);
+if (argv.includes('--on')) { try { fs.unlinkSync(path.join(HERE, 'KILLED')); } catch {} }
 if (argv.includes('--help') || argv.includes('-h')) {
   console.log('wow-ai [--project <dir>] [--once] [--inject "text" [--agent <id>]]\n\n' +
     'Runs the WoW AI bridge. Chats without a folder of their own work in <dir>,\n' +
@@ -97,12 +98,22 @@ function siblingFolders() {
 const SLOTS = cfg.slots || 200;
 const MAX_PARALLEL = cfg.maxParallel || 3;
 const cap = Object.assign({ enabled: true, processName: 'WowB', cellPx: 4, cellsPerRow: 200, maxRows: 48, intervalMs: 250 }, cfg.capture || {});
+cfg.forever = cfg.forever || {};
+cfg.forever.mentorDir = path.resolve(cfg.forever.mentorDir || path.join(REPO, '..', 'wow-mentor'));
+cfg.forever.clientDir = path.resolve(cfg.forever.clientDir || path.resolve(cfg.addonDir || '', '..', '..'));
+cfg.forever.journal = Object.assign({ dir: path.join(cfg.forever.mentorDir, 'journal'), enabled: true }, cfg.forever.journal || {});
+if (!cfg.forever.journal.dir) cfg.forever.journal.dir = path.join(cfg.forever.mentorDir, 'journal');
+cfg.forever.screenshotsDir = cfg.forever.screenshotsDir || path.join(cfg.forever.clientDir, 'Screenshots');
+cfg.forever.bulk = cfg.forever.bulk || {};
 // The game-side files. A config.json written for the addon's old name
 // (WoWClaude) still works: the paths are derived from addonDir instead.
 const INBOX_FILE = cfg.inboxFile && !/WoWClaude/.test(cfg.inboxFile) ? cfg.inboxFile : path.join(cfg.addonDir || '', 'WoWAI', 'Inbox.lua');
 const SAVED_VARS = String(cfg.savedVariablesFile || '').replace(/WoWClaude\.lua$/, 'WoWAI.lua');
 
 let state = readJson(STATE_FILE, { lastId: 0, sessions: {}, handled: {} });
+state.forever = state.forever || { bulk: {} };
+state.forever.bulk = state.forever.bulk || {};
+state.chatAgents = state.chatAgents || {};
 if (!state.handled) state.handled = {};
 if (!state.sessions) state.sessions = {};
 // Older versions stored handled[session] as "highest id so far"; expand to a map.
@@ -181,10 +192,14 @@ function forgetChat(job) {
 
 let lastMtime = 0;
 const running = new Map(); // chatKey -> { job, child }
+const owned = new Set(); // session#id of jobs a Forever module is handling
 const queued = new Map();  // chatKey -> job waiting for that chat (or for a free parallel slot)
 const live = new Map();    // chatKey -> latest record shown to the game
 let lastPublish = 0;
 let publishTimer = null;
+let captureProcess = null;
+let captureStopped = false;
+let captureRestart = null;
 
 // ---------------------------------------------------------------------------
 // Small utilities
@@ -433,8 +448,22 @@ function allowRules(agentId, rules) {
 }
 
 // Run an agent without this bridge's chat/session/transcript bookkeeping.
+const onceChildren = new Set(); // agents started by runAgentOnce (council, journal)
+
+// Stop every agent this bridge started (the kill switch).
+function stopRunning() {
+  for (const { child } of running.values()) if (child) killTree(child);
+  for (const child of onceChildren) killTree(child);
+}
+
 function runAgentOnce(options) {
-  return runAgent(options, { A, P, cfg, killTree });
+  // The kill switch covers one-off runs too (the journal starts them without a job).
+  if (fs.existsSync(path.join(HERE, 'KILLED'))) return Promise.resolve({ status: 'error', text: 'AI is off.', elapsedMs: 0 });
+  const started = Date.now();
+  Forever.onRun({ job: { chat: options.chat || 'council', cwd: options.cwd, text: options.prompt }, agentId: options.agentId,
+    cwd: options.cwd, prompt: String(options.prompt || ''), promptBytes: Buffer.byteLength(String(options.prompt || '')) });
+  const onSpawn = child => { onceChildren.add(child); child.on('close', () => onceChildren.delete(child)); };
+  return runAgent(options, { A, P, cfg, killTree, onSpawn, augment: (job, info) => Forever.augment(job, info) }).then(result => { result.elapsedMs = Date.now() - started; return result; });
 }
 
 // ---------------------------------------------------------------------------
@@ -442,6 +471,9 @@ function runAgentOnce(options) {
 // ---------------------------------------------------------------------------
 
 function submit(job) {
+  job.cwd = resolveCwd(job.cwd);
+  if (job.agent) state.chatAgents[job.chat] = job.agent;
+  job.agent = job.agent || state.chatAgents[job.chat] || DEFAULT_AGENT;
   if (alreadyHandled(job)) return;
   if (job.ctx !== undefined) setContext(job);
   if (job.forget) {
@@ -465,13 +497,21 @@ function submit(job) {
     log(`hello from session ${job.session}${pendingRestore ? ' (restore offered)' : ''}`);
     return;
   }
+  // A module owns this job until finish() marks it handled: the strip and the
+  // reload outbox keep showing it meanwhile, and it must not start twice.
+  const owner = `${job.session || ''}#${job.id}`;
+  if (owned.has(owner)) return;
+  // Ack even a job the module already finished, so the addon stops re-sending it.
+  const claim = () => { if (!job.finished) owned.add(owner); signal('ack', job.id, true); };
   let ownership;
   try { ownership = Forever.intercept(job); } catch (e) { log('forever intercept failed:', e.message); }
   if (ownership && typeof ownership.then === 'function') {
-    ownership.then(owned => { if (!owned) queueJob(job); }, e => { log('forever intercept failed:', e.message); queueJob(job); });
+    owned.add(owner);
+    ownership.then(yes => { if (yes) claim(); else { owned.delete(owner); queueJob(job); } },
+      e => { log('forever intercept failed:', e.message); owned.delete(owner); queueJob(job); });
     return;
   }
-  if (ownership) return;
+  if (ownership) { claim(); return; }
   queueJob(job);
 }
 
@@ -502,6 +542,7 @@ function runJob(job) {
   const key = chatKey(job);
   const cwd = resolveCwd(job.cwd);
   job.cwd = cwd;
+  job.startedAt = Date.now();
   const tag = `#${job.id}${job.session ? '@' + job.session : ''}`;
   signal('sig', job.id, false);
   resetBeats(job.id);
@@ -563,7 +604,7 @@ function runJob(job) {
     try { fs.mkdirSync(TMP_DIR, { recursive: true }); fs.writeFileSync(promptFile, input.promptFile); }
     catch (e) { finish(job, 'error', `Could not write the prompt file ${promptFile}: ${e.message}`); return; }
   }
-  const args = [...cmd.args, ...agent.args({
+  let args = [...cmd.args, ...agent.args({
     cfg: acfg, resume, cwd, system, systemShort, promptFile, images: job.images,
     prompt: job.text, timeoutMs: cfg.timeoutMs,
   })];
@@ -578,8 +619,9 @@ function runJob(job) {
   log(`${tag} (${job.via}) ${agent.name} starting in ${cwd}${resume ? ' (resume ' + resume.slice(0, 8) + ')' : ' (new session)'}${ctx ? ' [game context]' : ''}${running.size ? ' [' + (running.size + 1) + ' running]' : ''}`);
   const runInfo = { agentId, cwd, args, input, env };
   Forever.augment(job, runInfo);
+  args = runInfo.args;
   const child = spawn(cmd.file, args, { cwd, env, windowsHide: true, stdio: [input.stdin !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe'] });
-  Forever.onRun({ job, agentId, cwd, args, promptBytes: Buffer.byteLength(String(input.stdin || '')) });
+  Forever.onRun({ job, agentId, cwd, args, prompt: String(input.stdin || job.text || ''), promptBytes: Buffer.byteLength(String(input.stdin || '')) });
   running.set(key, { job, child });
   publish(key, { chat: job.chat, id: job.id, status: 'working', text: resume ? 'thinking...' : 'starting a new session...', cwd, session: resume, agent: agentId }, true);
   if (input.stdin !== undefined) { child.stdin.on('error', () => {}); child.stdin.end(input.stdin); }
@@ -701,6 +743,7 @@ function finish(job, status, text, session, denied) {
   if (job.finished) return; // spawn failures fire both 'error' and 'close'
   Forever.onFinish(job, status, text);
   job.finished = true;
+  owned.delete(`${job.session || ''}#${job.id}`);
   running.delete(chatKey(job));
   markHandled(job);
   saveState();
@@ -725,6 +768,7 @@ function pollSavedVariables() {
   try { st = fs.statSync(SAVED_VARS); } catch { return; }
   if (st.mtimeMs === lastMtime) return;
   lastMtime = st.mtimeMs;
+  try { Forever.onSavedVariables(fs.readFileSync(SAVED_VARS, 'utf8')); } catch {}
   const job = readOutbox();
   if (job) submit(job);
 }
@@ -745,8 +789,12 @@ function captureCommand() {
 }
 
 function startCapture() {
+  if (!cap.enabled) return;
+  captureStopped = false;
+  if (captureProcess) return;
   const [cmd, args] = captureCommand();
   const ps = spawn(cmd, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  captureProcess = ps;
   const rl = readline.createInterface({ input: ps.stdout });
   rl.on('line', (line) => {
     let ev;
@@ -763,10 +811,20 @@ function startCapture() {
   ps.stderr.on('data', (d) => log('capture stderr:', String(d).trim().slice(0, 300)));
   ps.on('error', (err) => log(`capture could not start (${cmd}): ${err.message}`));
   ps.on('close', (code) => {
+    if (captureProcess === ps) captureProcess = null;
+    if (captureStopped) return;
     log(`capture exited (${code}); restarting in 5 s`);
-    setTimeout(startCapture, 5000);
+    captureRestart = setTimeout(startCapture, 5000);
   });
 }
+
+function stopCapture() {
+  captureStopped = true;
+  if (captureRestart) { clearTimeout(captureRestart); captureRestart = null; }
+  if (captureProcess) { const child = captureProcess; captureProcess = null; child.kill(); }
+}
+
+function captureRunning() { return !!captureProcess && !captureStopped; }
 
 function agentLine(id) {
   const acfg = A.agentConfig(cfg, id);
@@ -797,7 +855,13 @@ function banner() {
 
 banner();
 Forever.load(path.join(HERE, 'forever', 'modules'), cfg.forever && cfg.forever.disabled || []);
-Forever.init({ cfg, log, HERE, REPO, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce });
+Forever.init({ cfg, log, HERE, REPO, SAVED_VARS, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce,
+  capture: { stop: stopCapture, start: startCapture, running: captureRunning }, stopRunning,
+  transcript: chat => {
+    const messages = transcripts.chats[chat] && transcripts.chats[chat].messages || [];
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    return last ? (P.splitSummary(last.text).summary || last.text || '') : '';
+  } });
 process.on('exit', () => Forever.stop());
 if (inject !== null) {
   submit({ id: state.lastId + 1, session: '', chat: '', text: inject, cwd: '', newSession: false, via: 'inject', agent: injectAgent || '' });
@@ -809,6 +873,6 @@ if (inject !== null) {
     setInterval(pollSavedVariables, cfg.pollMs || 750);
     presenceBeat();
     setInterval(presenceBeat, cfg.presenceIntervalMs || 30000);
-    if (cap.enabled) startCapture();
+    if (cap.enabled && !fs.existsSync(path.join(HERE, 'KILLED'))) startCapture();
   }
 }

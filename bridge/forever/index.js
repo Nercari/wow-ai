@@ -47,6 +47,7 @@ function intercept(job) {
 }
 function augment(job, runInfo) { for (const mod of modules) invoke(mod, 'augment', [job, runInfo, ctx]); }
 function onRun(info) { for (const mod of modules) invoke(mod, 'onRun', [info, ctx]); }
+function onSavedVariables(src) { for (const mod of modules) invoke(mod, 'onSavedVariables', [src, ctx]); }
 function onFinish(job, status, text) { for (const mod of modules) invoke(mod, 'onFinish', [job, status, text, ctx]); }
 function stop() { for (const mod of modules) invoke(mod, 'stop', []); }
-module.exports = { modules, register, load, init, intercept, augment, onRun, onFinish, stop };
+module.exports = { modules, register, load, init, intercept, augment, onRun, onSavedVariables, onFinish, stop };
