@@ -46,11 +46,14 @@ function Methods.SetShown(self, v) if v then self:Show() else self:Hide() end en
 function Methods.IsShown(self) return self.shown end
 function Methods.IsVisible(self) return self.shown end
 function Methods.SetText(self, t) self.text = t; table.insert(STUB.texts, tostring(t)) end
+function Methods.SetTextColor(self, r, g, b, a) self.textColor = { r, g, b, a } end
 function Methods.GetText(self) return self.text or "" end
 function Methods.GetName(self) return self.name end
 function Methods.GetParent(self) return self.parent end
 function Methods.GetWidth(self) return self.width or 400 end
 function Methods.GetHeight(self) return self.height or 300 end
+function Methods.GetFrameLevel(self) return self.frameLevel or 1 end
+function Methods.GetCenter(self) return self.x or 0, self.y or 0 end
 function Methods.SetSize(self, w, h) self.width, self.height = w, h end
 function Methods.SetWidth(self, w) self.width = w end
 function Methods.SetHeight(self, h) self.height = h end
@@ -76,7 +79,11 @@ function Methods.IsPlaying(self) return self.playing or false end
 function Methods.Play(self) self.playing = true end
 function Methods.Stop(self) self.playing = false end
 function Methods.SetColorTexture(self, r, g, b, a) self.color = { r, g, b, a } end
-function Methods.SetTexture(self, path) self.texture = path; return true end
+function Methods.SetTexture(self, path)
+	self.texture = path
+	if STUB.missingTexture == path then STUB.missingHit = true; return false end
+	return true
+end
 function Methods.GetTexture(self) return self.texture end
 function Methods.SetBackdrop(self, t)
 	-- The real client would silently draw nothing; make it a test failure instead.
@@ -84,6 +91,8 @@ function Methods.SetBackdrop(self, t)
 	self.backdrop = t
 end
 function Methods.SetFocus(self) STUB.focus = self end
+function Methods.GetCursorPosition(self) return self.cursorPosition or 0 end
+function Methods.SetCursorPosition(self, value) self.cursorPosition = value end
 function Methods.ClearFocus(self) if STUB.focus == self then STUB.focus = nil end end
 function Methods.HasFocus(self) return STUB.focus == self end
 function Methods.Insert(self, t) self.text = (self.text or "") .. tostring(t) end
@@ -131,6 +140,8 @@ end
 
 UIParent = CreateFrame("Frame", "UIParent")
 GameTooltip = CreateFrame("Frame", "GameTooltip")
+Minimap = CreateFrame("Frame", "Minimap")
+function Minimap:GetCenter() return 0, 0 end
 UIErrorsFrame = CreateFrame("Frame", "UIErrorsFrame")
 ChatFontNormal = {}
 OKAY, CANCEL = "Okay", "Cancel"
@@ -150,7 +161,7 @@ function hooksecurefunc(a, b, c)
 		_G[a] = function(...) local r = orig(...); b(...); return r end
 	end
 end
-function InCombatLockdown() return false end
+function InCombatLockdown() return STUB.combat or false end
 function ReloadUI() STUB.reloaded = true end
 function GetTime() return STUB.now end
 function time() return STUB.epoch + math.floor(STUB.now) end
@@ -168,11 +179,20 @@ C_AddOns = {
 	end,
 }
 C_Texture = { GetAtlasExists = function() return true end }
+SOUNDKIT = { IG_CHARACTER_INFO_OPEN = 1, IG_CHARACTER_INFO_CLOSE = 2, TELL_MESSAGE = 3 }
+NORMAL_FONT_COLOR = { r = 1, g = 0.82, b = 0 }
+RAID_CLASS_COLORS = { HUNTER = { r = 0.67, g = 0.83, b = 0.45 } }
 function PlaySound() end
 function PlaySoundFile(path) if STUB.sounds[path] then return true, 1 end return false end
 function StopSound() end
 function GetPhysicalScreenSize() return 1920, 1080 end
 function SetBinding(key, cmd) STUB.bindings[key] = cmd end
+function GetBindingAction(key) return STUB.bindings[key] or "" end
+function GetBindingKey(action)
+	local keys = {}
+	for key, value in pairs(STUB.bindings) do if value == action then table.insert(keys, key) end end
+	return unpack(keys)
+end
 function SaveBindings() end
 function GetCurrentBindingSet() return 1 end
 function SetItemRef() end

@@ -1795,6 +1795,7 @@ local function GetBubble(i)
 		if button == "LeftButton" and self.text and self.text ~= "" then WoWAI.ShowCopy(self.text) end
 	end)
 	ui.bubbles[i] = b
+	if WoWAIForever and WoWAIForever.Fire then WoWAIForever.Fire("BUBBLE_BUILT", b) end
 	return b
 end
 
@@ -1915,6 +1916,7 @@ function WoWAI.ShowCopy(text)
 		sc:SetScrollChild(eb)
 		sc:HookScript("OnSizeChanged", function(self, w) eb:SetWidth(w) end)
 		ui.copy, ui.copyBox = cf, eb
+		if WoWAIForever and WoWAIForever.Fire then WoWAIForever.Fire("COPY_BUILT", cf) end
 	end
 	ui.copyBox:SetText(text)
 	ui.copy:Show()
@@ -2438,6 +2440,7 @@ local function BuildUI()
 		end)
 		b:Hide()
 		ui.chatButtons[i] = b
+		if WoWAIForever and WoWAIForever.Fire then WoWAIForever.Fire("CHAT_ROW_BUILT", b) end
 	end
 
 	-- Transcript: a scrolling stack of message bubbles
@@ -2534,14 +2537,16 @@ local function BuildUI()
 	local hotkey = CreateFrame("Button", "WoWAIRefreshButton", UIParent)
 	hotkey:SetSize(1, 1)
 	hotkey:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -10, 10)
-	hotkey:SetScript("OnClick", function()
+	local function RefreshAction()
 		local c = ActiveChat()
 		if c and c.pendingId then
 			WoWAI.Send("")
 		else
 			WoWAI.Toggle()
 		end
-	end)
+	end
+	hotkey:SetScript("OnClick", RefreshAction)
+	WoWAI.refreshAction = RefreshAction
 
 	local cwd = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	cwd:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 16, 4)
@@ -2639,6 +2644,11 @@ local function BuildUI()
 		GameTooltip:Show()
 	end)
 	mclose:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	if WoWAIForever and WoWAIForever.Fire then
+		WoWAIForever.Fire("UI_BUILT", { frame = f, title = title, status = status, panel = panel,
+			menu = menu, scroll = scroll, inputBg = inputBg, input = input, cwd = cwd, grip = grip,
+			mini = m, chatButtons = ui.chatButtons })
+	end
 end
 
 function WoWAI.Toggle(show)
@@ -2963,7 +2973,7 @@ SlashCmdList["WOWAI"] = function(msg)
 	end
 end
 
-WoWAI.internal = { AddHistory = AddHistory, ActiveChat = ActiveChat, Render = WoWAI.Render, RefreshStrip = RefreshStrip, FindChat = FindChat }
+WoWAI.internal = { AddHistory = AddHistory, ActiveChat = ActiveChat, Render = WoWAI.Render, RefreshStrip = RefreshStrip, FindChat = FindChat, Chats = function() return db.chats end, SwitchChat = WoWAI.SwitchChat }
 
 ---------------------------------------------------------------------------
 -- Events

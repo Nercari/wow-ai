@@ -22,3 +22,5 @@ Forever_DeathShot.lua
 Forever_Translate.lua
 Forever_Jobs.lua
 Forever_Banner.lua
+Forever_Skin.lua
+Forever_Keys.lua

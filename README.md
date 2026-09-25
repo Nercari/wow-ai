@@ -46,6 +46,10 @@ The bridge drives whichever of these you have installed; each chat can use a dif
   - [Codex](https://developers.openai.com/codex): `npm install -g @openai/codex`, then `codex` once to log in
   - [Grok Build](https://docs.x.ai/build/overview): `irm https://x.ai/cli/install.ps1 | iex`, then `grok login`
 
+## Forever
+
+See [docs/FOREVER.md](docs/FOREVER.md) for the classic UI skin and hotkeys.
+
 ## Install
 
 ### Windows
