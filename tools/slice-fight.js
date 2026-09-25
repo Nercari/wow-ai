@@ -36,12 +36,14 @@ function argsOf(argv) {
   if (!Number.isFinite(o.pad) || o.pad < 0) throw new Error("invalid --pad");
   return o;
 }
-function stamp(line) {
+// ponytail: a log without the year (pre-2024 format) is read as this year;
+// a fight across New Year's would need the year from the file name.
+function stamp(line, year = new Date().getFullYear()) {
   const m = line.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d\d):(\d\d):(\d\d)\.(\d{3})(?:([+-])(\d{1,2})(?::?(\d\d))?)?  /,
+    /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))? (\d\d):(\d\d):(\d\d)\.(\d{3})\d*(?:([+-])(\d{1,2})(?::?(\d\d))?)?  /,
   );
   if (!m) return NaN;
-  const [, mo, da, yr, h, mi, s, ms, sign, oh, om] = m;
+  const [, mo, da, yr = year, h, mi, s, ms, sign, oh, om] = m;
   const utc = Date.UTC(+yr, +mo - 1, +da, +h, +mi, +s, +ms);
   return sign
     ? utc - (sign === "+" ? 1 : -1) * (+oh * 60 + +(om || 0)) * 60000
@@ -61,8 +63,10 @@ async function firstLast(file) {
     const size = (await fh.stat()).size,
       head = Buffer.alloc(Math.min(65536, size));
     await fh.read(head, 0, head.length, 0);
-    let first = NaN;
+    let first = NaN,
+      version = "";
     for (const l of head.toString("utf8").split(/\r?\n/)) {
+      if (VERSION.test(l)) version = l;
       first = stamp(l);
       if (Number.isFinite(first)) break;
     }
@@ -76,6 +80,7 @@ async function firstLast(file) {
       if (Number.isFinite(last)) break;
     }
     return {
+      version,
       first: Number.isFinite(first) ? first : fileNameTime(path.basename(file)),
       last: Number.isFinite(last)
         ? last
@@ -137,6 +142,8 @@ async function seekAt(file, target) {
     await fh.close();
   }
 }
+// The game writes this header when logging starts, usually long before the fight.
+const VERSION = /(?:^|  )COMBAT_LOG_VERSION,/;
 const STRUCT =
   /(?:COMBAT_LOG_VERSION|ENCOUNTER_START|ENCOUNTER_END|UNIT_DIED|ZONE_CHANGE|CHALLENGE_MODE_)/;
 const DAMAGE = /_(?:DAMAGE|MISSED|ABSORBED)(?:,|$)/;
@@ -166,13 +173,14 @@ async function run(o) {
     deathDamage = null;
   for (const file of files) {
     const range = await firstLast(file);
+    if (range.version && !lines.includes(range.version)) lines.push(range.version);
     const offset = start <= range.first ? 0 : await seekAt(file, start),
       input = fs.createReadStream(file, { start: offset });
     const rl = readline.createInterface({ input, crlfDelay: Infinity });
     for await (const line of rl) {
       const t = stamp(line);
       if (Number.isFinite(t) && t > end) break;
-      if (line.startsWith("COMBAT_LOG_VERSION")) {
+      if (VERSION.test(line)) {
         if (!lines.includes(line)) lines.push(line);
         continue;
       }

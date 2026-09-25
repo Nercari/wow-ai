@@ -1,0 +1,44 @@
+9/25/2026 19:58:00.000  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,0,BUILD_VERSION,1.60.1,PROJECT_ID,2
+9/25/2026 19:58:00.001  ZONE_CHANGE,40,"Westfall",0
+9/25/2026 19:59:40.200  SPELL_CAST_SUCCESS,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,5242,"Battle Shout",0x1
+9/25/2026 19:59:40.200  SPELL_AURA_APPLIED,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,5242,"Battle Shout",0x1,BUFF
+9/25/2026 19:59:52.000  SWING_DAMAGE,Creature-0-4395-0-12-1726-00001B2C3D,"Defias Magician",0xa48,0x0,Player-4395-0FFF9999,"Quelli-Testrealm",0x512,0x0,9,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:10.100  SPELL_CAST_SUCCESS,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,100,"Charge",0x1
+9/25/2026 20:00:10.600  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,24,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:11.200  SPELL_CAST_START,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,0000000000000000,nil,0x80000000,0x80000000,9053,"Fireball",0x4
+9/25/2026 20:00:11.900  SPELL_CAST_SUCCESS,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,72,"Shield Bash",0x1
+9/25/2026 20:00:11.900  SPELL_INTERRUPT,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,72,"Shield Bash",0x1,9053,"Fireball",4
+9/25/2026 20:00:12.400  SPELL_CAST_SUCCESS,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1
+9/25/2026 20:00:12.400  SPELL_AURA_APPLIED,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1,DEBUFF
+9/25/2026 20:00:13.100  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,22,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:13.300  SWING_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,11,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:15.100  SPELL_PERIODIC_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1,8,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:15.700  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,25,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:16.300  SPELL_CAST_SUCCESS,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,285,"Heroic Strike",0x1
+9/25/2026 20:00:16.300  SPELL_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,285,"Heroic Strike",0x1,45,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:18.100  SPELL_PERIODIC_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1,8,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:18.300  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,23,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:20.000  SPELL_CAST_START,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,0000000000000000,nil,0x80000000,0x80000000,9053,"Fireball",0x4
+9/25/2026 20:00:21.100  SPELL_PERIODIC_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1,8,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:22.900  SPELL_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,9053,"Fireball",0x4,71,0,4,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:23.200  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,21,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:24.100  SPELL_PERIODIC_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1,8,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:27.100  SPELL_AURA_REMOVED,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,6546,"Rend",0x1,DEBUFF
+9/25/2026 20:00:27.500  SPELL_CAST_START,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,0000000000000000,nil,0x80000000,0x80000000,9053,"Fireball",0x4
+9/25/2026 20:00:30.400  SPELL_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,9053,"Fireball",0x4,78,0,4,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:30.600  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,24,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:31.200  SPELL_CAST_START,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,0000000000000000,nil,0x80000000,0x80000000,9053,"Fireball",0x4
+9/25/2026 20:00:32.000  SPELL_CAST_SUCCESS,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,285,"Heroic Strike",0x1
+9/25/2026 20:00:32.000  SPELL_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,285,"Heroic Strike",0x1,47,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:33.100  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,22,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:34.200  SPELL_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,9053,"Fireball",0x4,74,0,4,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:35.300  SWING_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,12,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:35.600  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,25,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:36.100  SPELL_CAST_START,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,0000000000000000,nil,0x80000000,0x80000000,9053,"Fireball",0x4
+9/25/2026 20:00:37.900  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,24,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:39.100  SPELL_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,9053,"Fireball",0x4,76,0,4,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:39.500  SPELL_CAST_START,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,0000000000000000,nil,0x80000000,0x80000000,9053,"Fireball",0x4
+9/25/2026 20:00:40.200  SWING_DAMAGE,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,23,0,1,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:42.500  SPELL_DAMAGE,Creature-0-4395-0-12-589-00001A2B3C,"Defias Pillager",0xa48,0x0,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,9053,"Fireball",0x4,80,21,4,0,0,0,nil,nil,nil,nil
+9/25/2026 20:00:42.600  UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,0
+9/25/2026 20:01:30.000  SWING_DAMAGE,Creature-0-4395-0-12-1726-00001B2C3D,"Defias Magician",0xa48,0x0,Player-4395-0FFF9999,"Quelli-Testrealm",0x512,0x0,10,0,1,0,0,0,nil,nil,nil,nil
