@@ -1,6 +1,16 @@
 -- Extension registry. Modules are deliberately featureless in this package.
 WoWAIForever = WoWAIForever or { modules = {} }
 WoWAIForever.modules = WoWAIForever.modules or {}
+WoWAIForever.listeners = WoWAIForever.listeners or {}
+function WoWAIForever.On(name, fn)
+	if type(name) ~= "string" or type(fn) ~= "function" then return end
+	local list = WoWAIForever.listeners[name] or {}
+	WoWAIForever.listeners[name] = list
+	table.insert(list, fn)
+end
+function WoWAIForever.Fire(name, ...)
+	for _, fn in ipairs(WoWAIForever.listeners[name] or {}) do pcall(fn, ...) end
+end
 local frame = CreateFrame("Frame")
 local function WantsEvent(events, event)
 	if type(events) ~= "table" then return false end
