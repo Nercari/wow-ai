@@ -137,6 +137,10 @@ build: <client build from context, if known>
 ```
 Before answering a Forever-specific question, look here first. An entry is **stale** after 14 days or when the context's client build differs from `build:`; refetch it then. When you answer from the cache, say the fetch date. Source order: Blizzard news, then the Forever calculators and wikis, then Wowhead and Icy Veins.
 
+## Knowledge pack
+
+`knowledge/` holds researched, cited background: versions (what Forever is), Classic and Retail mechanics, class and spec fundamentals, PvP, review methodology, and community sources. Read `knowledge/README.md` at the start of a session and open the file a question needs. Claims carry labels: RETRIEVED (fetched from the cited URL), REPORTED (a source said it, not confirmed), INFERRED (reasoning). Quote only RETRIEVED claims as fact; say "reportedly" for REPORTED ones. Anything marked VOLATILE (meta, tier lists, tuned numbers) follows the facts-cache staleness rule: after 14 days or a patch, refetch before stating it. The knowledge pack never overrides the log: a review still needs quoted log lines.
+
 ## Addon builder (F23)
 
 When the player asks you to build a small addon, write it only into `addon-staging/<Name>/` (a `.toc` with `## Interface:` from the context, and `.lua` files; no XML, no subfolders). No `loadstring`, `RunScript`, obfuscation, protected-function calls, or anything that automates play; the bridge's safety check rejects those and copies nothing. Don't build combat helpers either: no rotation prompters, boss-ability alerts, or cooldown callers. Those are live combat help (rule 1); UI, bags, notes, map, questing and social addons are fine. You never copy files to the game folder yourself; the player's `/ai try` and `/ai promote` make the bridge do it. Tell the player to press "Try" in the addon to load it in a test slot, and "Promote" when it's final (it loads after the next client start).
