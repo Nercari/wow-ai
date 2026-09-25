@@ -105,7 +105,7 @@ test('bulk tables shape, version bump, and reload hint for quests and gear', () 
   assert.ok(vm.evaluate('table.concat(STUB.prints, "\\n")').includes('Gear saved: /reload to send it to the AI.'));
 });
 
-test('journal records events, caps at 300, bumps version and sets logout flag, clears on fresh login', () => {
+test('journal records events, caps at 300, bumps version and sets the logout flag at logout, clears on fresh login', () => {
   const vm = newVM();
   login(vm);
 
@@ -181,6 +181,8 @@ test('AH scan does nothing without C_AuctionHouse and scans shopping list when p
 
   // Result event arrives
   vm.run('STUB.FireEvent("COMMODITY_SEARCH_RESULTS_UPDATED")');
+  // Both result events re-read the same results: still one row.
+  vm.run('STUB.FireEvent("COMMODITY_SEARCH_RESULTS_RECEIVED")');
   // Trigger ticker completion (scanIndex moves past shopping list)
   vm.run('STUB.Tick()'); // ticker fires StepAHScan -> scan done
   assert.equal(vm.num('WoWAI_Bulk.ah.version'), 1);

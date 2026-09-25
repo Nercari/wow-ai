@@ -66,8 +66,12 @@ local function SendBuffer()
 	for _, item in ipairs(buffer) do
 		table.insert(lines, item.line)
 	end
-	lastSender = buffer[#buffer].sender
-	lastChannel = buffer[#buffer].chan
+	-- A reply goes to one person: only offer it when the whole batch came from one sender.
+	lastSender = buffer[1].sender
+	lastChannel = buffer[1].chan
+	for _, item in ipairs(buffer) do
+		if item.sender ~= lastSender or item.chan ~= lastChannel then lastSender = nil end
+	end
 	buffer = {}
 	lastSendTime = now
 	local payload = "[translate] to " .. tdb.lang .. ":\n" .. table.concat(lines, "\n")

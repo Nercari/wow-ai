@@ -1,7 +1,17 @@
 local ahFrame = nil
 local scanTicker = nil
 local scannedItems = {}
+local scannedKeys = {}
 local scanIndex = 1
+local MAX_SCANNED = 500
+local MAX_AH_LIST = 50
+
+local function AddScanned(row)
+	local key = tostring(row.id) .. ":" .. tostring(row.price)
+	if scannedKeys[key] or #scannedItems >= MAX_SCANNED then return end
+	scannedKeys[key] = true
+	table.insert(scannedItems, row)
+end
 
 local function EnsureBulk()
 	WoWAI_Bulk = WoWAI_Bulk or {}
@@ -107,7 +117,7 @@ local function CollectAHResults()
 			for i = 1, count do
 				local ok2, info = pcall(C_AuctionHouse.GetCommoditySearchResultInfo, i)
 				if ok2 and type(info) == "table" then
-					table.insert(scannedItems, {
+					AddScanned({
 						id = info.itemID or info.id,
 						name = info.name or info.itemName or "",
 						price = info.unitPrice or info.price or 0,
@@ -124,7 +134,7 @@ local function CollectAHResults()
 			for i = 1, count do
 				local ok2, info = pcall(C_AuctionHouse.GetItemSearchResultInfo, i)
 				if ok2 and type(info) == "table" then
-					table.insert(scannedItems, {
+					AddScanned({
 						id = info.itemID or info.id,
 						name = info.name or info.itemName or "",
 						price = info.buyoutAmount or info.unitPrice or info.price or 0,
@@ -173,6 +183,7 @@ local function StartAHScan()
 	end
 	StopAHScan()
 	scannedItems = {}
+	scannedKeys = {}
 	scanIndex = 1
 	StepAHScan()
 	if C_Timer and type(C_Timer.NewTicker) == "function" then
@@ -202,6 +213,10 @@ local function HandleAH(rest)
 	local sub, arg = (rest or ""):match("^(%S+)%s*(.-)$")
 	sub = sub and sub:lower() or ""
 	if sub == "add" and arg ~= "" then
+		if #WoWAIForeverDB.ahList >= MAX_AH_LIST then
+			print("AH scan list is full (" .. MAX_AH_LIST .. "): /ai ah clear first")
+			return
+		end
 		table.insert(WoWAIForeverDB.ahList, arg)
 		print("Added to AH scan list: " .. arg)
 	elseif sub == "list" then
