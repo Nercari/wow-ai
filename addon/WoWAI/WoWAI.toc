@@ -11,3 +11,7 @@ Inbox.lua
 WoWAI.lua
 Map.lua
 Forever.lua
+Forever_Lockout.lua
+Forever_Context.lua
+Forever_Switch.lua
+Forever_Commands.lua
