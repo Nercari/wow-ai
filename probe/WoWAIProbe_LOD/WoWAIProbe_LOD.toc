@@ -1,0 +1,4 @@
+## Interface: 16001
+## Title: WoW AI Probe LOD
+## LoadOnDemand: 1
+WoWAIProbe_LOD.lua
