@@ -108,6 +108,19 @@ test('Hermes command modes, image forwarding and plain text completion', () => {
   { session: '20260925_134414_e62607', done: { text: 'PONG', error: false } });
 });
 
+test('agy review fixes: hermes stderr errors, yolo spellings, flag-like images, agy arg bound', () => {
+  const p = A.hermesParser();
+  assert.deepEqual(p.finish({ stdout: '', stderr: '\x1b[2mSession_ID: abc\x1b[0m\nError: model not found\n', code: 1 }),
+    { session: 'abc', done: { text: 'Error: model not found', error: true } });
+  const extra = ['--yolo', '-y', '--yolo=1', '--max-turns', '3'];
+  const args = A.AGENTS.hermes.args({ cfg: { extraArgs: extra }, cwd: '.', resume: '', images: ['--yolo'] });
+  assert.deepEqual(args.slice(-2), ['--max-turns', '3']);
+  assert.ok(!args.some(x => /yolo|^-y$/.test(x)) && !args.includes('--image'));
+  assert.ok(!A.AGENTS.codex.args({ cfg: {}, resume: '', cwd: 'x', images: ['-bad'] }).includes('-bad'));
+  const agy = A.AGENTS.agy.args({ cfg: {}, cwd: '.', resume: '', prompt: 'p'.repeat(30000), system: 's'.repeat(40000) });
+  assert.ok(agy[0].length <= 24100, `agy -p argument is ${agy[0].length} chars`);
+});
+
 test('Grok: streaming-json from a prompt file, dontAsk plus translated allow rules, resume and the system prompt', () => {
   const cfg = { permissionMode: 'acceptEdits', allowedTools: ['WebSearch', 'Bash(git:*)', 'Bash'], model: 'grok-build' };
   const args = A.AGENTS.grok.args({ cfg, resume: 's-1', cwd: 'C:\\p', system: SYS, promptFile: 'C:\\b\\tmp\\prompt-001.txt' });
@@ -298,6 +311,10 @@ test('resolveCommand: a configured script runs with this node, an npm .cmd shim 
     const realShim = path.join(tmp, 'codex2.cmd');
     fs.writeFileSync(realShim, 'IF EXIST "%dp0%\\node.exe" (\r\n  SET "_prog=%dp0%\\node.exe"\r\n)\r\n"%_prog%"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*\r\n');
     assert.deepEqual(A.unwrapShim(realShim, A.AGENTS.codex), { file: process.execPath, args: [path.join(bin, 'codex.js')], found: true });
+    // Other generators write %~dp0 and .bat launchers.
+    const batShim = path.join(tmp, 'codex3.bat');
+    fs.writeFileSync(batShim, '@node "%~dp0\\node_modules\\@openai\\codex\\bin\\codex.js" %*\r\n');
+    assert.deepEqual(A.resolveCommand('codex', { path: batShim }), { file: process.execPath, args: [path.join(bin, 'codex.js')], found: true });
     const oldPath = process.env.CODEX_BIN;
     try {
       process.env.CODEX_BIN = path.join(tmp, 'codex.exe');

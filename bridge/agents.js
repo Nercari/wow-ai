@@ -317,8 +317,11 @@ function hermesParser() {
   return {
     feed() { return empty(); },
     finish({ stdout, stderr, code }) {
-      const session = /session_id:\s*(\S+)/.exec(stderr || '');
-      return { session: session ? session[1] : '', done: { text: String(stdout || '').trim(), error: code !== 0 } };
+      const err = String(stderr || '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+      const session = /session_id:\s*(\S+)/i.exec(err);
+      let text = String(stdout || '').trim();
+      if (!text && code !== 0) text = err.replace(/^.*session_id:.*$/gim, '').trim().slice(-2000);
+      return { session: session ? session[1] : '', done: { text, error: code !== 0 } };
     },
   };
 }
@@ -379,7 +382,7 @@ const AGENTS = {
       if (cfg.model) a.push('-m', cfg.model);
       a.push(...(Array.isArray(cfg.extraArgs) ? cfg.extraArgs : []));
       if (resume) a.push('resume', resume);
-      for (const image of images || []) a.push('-i', image);
+      for (const image of images || []) if (!String(image).startsWith('-')) a.push('-i', image);
       a.push('-'); // the prompt comes on stdin
       return a;
     },
@@ -435,10 +438,10 @@ const AGENTS = {
     posixPaths: () => [],
     args({ cfg, resume, cwd, prompt, system, systemShort, timeoutMs }) {
       const text = String(prompt || '');
-      const context = contextBlock(resume ? systemShort || '' : system || '');
-      const limit = 24000;
-      const available = Math.max(0, limit - context.length);
-      const bounded = text.length > available ? text.slice(0, Math.max(0, available - 50)) + '\n[User prompt truncated to fit the agy command line.]' : text;
+      const note = '\n[User prompt truncated to fit the agy command line.]';
+      const context = contextBlock(resume ? systemShort || '' : system || '').slice(0, 12000);
+      const available = Math.max(0, 24000 - context.length - note.length);
+      const bounded = text.length > available ? text.slice(0, available) + note : text;
       const a = [`-p=${context}${bounded}`, '--output-format', 'stream-json', '--add-dir', cwd,
         '--print-timeout', `${Math.max(1, Math.ceil((timeoutMs || 1800000) / 1000))}s`];
       const mode = cfg.permissionMode || 'acceptEdits';
@@ -460,9 +463,9 @@ const AGENTS = {
       const a = ['chat', '--query-file', '-', '-Q', '--in', cwd, '--source', 'tool'];
       if (resume) a.push('--resume', resume);
       if (cfg.model) a.push('-m', cfg.model);
-      if (images && images.length) a.push('--image', images[0]);
+      if (images && images.length && !String(images[0]).startsWith('-')) a.push('--image', images[0]);
       // R1: hermes never runs with --yolo from the bridge, even via extraArgs.
-      return a.concat(Array.isArray(cfg.extraArgs) ? cfg.extraArgs.filter(x => x !== '--yolo') : []);
+      return a.concat(Array.isArray(cfg.extraArgs) ? cfg.extraArgs.filter(x => !/^(-y|--yolo)(=.*)?$/.test(String(x))) : []);
     },
     input: ({ prompt, system, systemShort, resume, images, cfg }) => {
       const ctx = resume ? systemShort : system;
@@ -531,7 +534,7 @@ function unwrapShim(shim, agent) {
   let src;
   try { src = fs.readFileSync(shim, 'utf8'); } catch { return null; }
   // npm shims also mention "%dp0%\node.exe"; the launcher is the .js one.
-  const m = [...src.matchAll(/"%dp0%\\([^"]+)"/g)].find(x => /\.[cm]?js$/i.test(x[1]));
+  const m = [...src.matchAll(/"%~?dp0%?\\([^"]+)"/g)].find(x => /\.[cm]?js$/i.test(x[1]));
   if (!m) return null;
   const script = path.resolve(path.dirname(shim), m[1].split('\\').join(path.sep));
   if (!exists(script)) return null;
@@ -563,7 +566,7 @@ function resolveCommand(id, cfg = {}) {
   const A = AGENTS[id];
   if (!A) return { file: id, args: [], found: false, note: `unknown agent "${id}"` };
   if (cfg.path) {
-    if (/\.cmd$/i.test(cfg.path)) {
+    if (/\.(cmd|bat)$/i.test(cfg.path)) {
       const r = unwrapShim(cfg.path, A);
       if (r) return r;
       return { file: cfg.path, args: [], found: false, note: `agents.${id}.path in config.json points at ${cfg.path}, which could not be unwrapped` };
@@ -574,7 +577,7 @@ function resolveCommand(id, cfg = {}) {
   }
   if (A.envPath && process.env[A.envPath]) {
     const p = process.env[A.envPath];
-    const r = /\.cmd$/i.test(p) ? unwrapShim(p, A) : fromPath(p);
+    const r = /\.(cmd|bat)$/i.test(p) ? unwrapShim(p, A) : fromPath(p);
     if (r && r.found) return r;
   }
   if (process.platform !== 'win32') {
