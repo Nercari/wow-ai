@@ -1,0 +1,137 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const lua = require('../../bridge/forever/lua-table');
+const command = require('../../bridge/forever/modules/00-commands');
+const mentor = require('../../bridge/forever/modules/05-mentor-guard');
+const audit = require('../../bridge/forever/modules/10-audit');
+const bulk = require('../../bridge/forever/modules/20-bulk');
+const screenshots = require('../../bridge/forever/modules/30-screenshots');
+const council = require('../../bridge/forever/modules/40-council');
+const phone = require('../../bridge/forever/modules/50-phone');
+const kill = require('../../bridge/forever/modules/01-killswitch');
+
+test('safe Lua parser handles fields, escapes, comments, arrays, and truncation', () => {
+  const source = 'WoWAI_Bulk = { -- hi\n ah = { version=2, at=3, items = { ' +
+    '{ id=1, name="a\\n\\034", ok=true, price=-1.5e2, }, }, }, }';
+  const out = lua.parseGlobal(source, 'WoWAI_Bulk');
+  assert.equal(out.ah.items[0].name, 'a\n"');
+  assert.equal(out.ah.items[0].price, -150);
+  assert.equal(out.ah.items[0].ok, true);
+  assert.throws(() => lua.parseGlobal('WoWAI_Bulk = { ah = {', 'WoWAI_Bulk'), e => e.name === 'LuaParseError' && e.truncated);
+  assert.equal(lua.parseGlobal('Other = {}', 'WoWAI_Bulk'), undefined);
+});
+
+test('command prefix and mentor argument rewrites', () => {
+  const job = { cmd: 'journal', text: 'go' };
+  assert.equal(command.intercept(job), false);
+  assert.equal(job.text, '[wowai cmd=journal]\ngo');
+  const claude = mentor.rewrite('claude', ['--permission-mode', 'default', '--allowedTools', 'Bash(*)', '--resume', 'x'], '/mentor', '/repo');
+  assert.deepEqual(claude.slice(0, 3), ['--resume', 'x', '--permission-mode']);
+  assert.ok(claude.includes('Read') && claude.includes(`Bash(node ${path.join('/repo', 'tools', 'slice-fight.js')}:*)`));
+  assert.deepEqual(mentor.rewrite('codex', ['-s', 'read-only', '-C', '/old'], '/mentor', '/repo'), ['-s', 'workspace-write', '-C', '/mentor']);
+  assert.deepEqual(mentor.rewrite('agy', [], '/mentor', '/repo'), ['--mode', 'accept-edits', '--add-dir', '/mentor']);
+  // Bypass flags never survive into a mentor chat.
+  assert.deepEqual(mentor.rewrite('codex', ['--dangerously-bypass-approvals-and-sandbox', '-C', '/old'], '/mentor', '/repo'),
+    ['-s', 'workspace-write', '-C', '/mentor']);
+  assert.deepEqual(mentor.rewrite('agy', ['--dangerously-skip-permissions', '--mode', 'plan'], '/mentor', '/repo'),
+    ['--mode', 'accept-edits', '--add-dir', '/mentor']);
+  assert.ok(!mentor.rewrite('grok', ['--always-approve'], '/mentor', '/repo').includes('--always-approve'));
+  assert.deepEqual(mentor.rewrite('hermes', ['-y', '--yolo=1'], '/mentor', '/repo'), ['--in', '/mentor']);
+  assert.deepEqual(mentor.rewrite('hermes', ['--yolo'], '/mentor', '/repo'), ['--in', '/mentor']);
+});
+
+test('audit appends prompt fields and prunes old dated files', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-audit-'));
+  const ctx = { HERE: dir, log() {} };
+  const old = path.join(dir, 'audit'); fs.mkdirSync(old);
+  fs.writeFileSync(path.join(old, '2000-01-01.jsonl'), 'old');
+  audit.init(ctx);
+  audit.onRun({ job: { chat: 'c', text: 'prompt', ctx: 'context', images: ['x'], cmd: 'look' }, agentId: 'claude', cwd: '/x' }, ctx);
+  const file = fs.readdirSync(old).find(f => f !== '2000-01-01.jsonl');
+  const row = JSON.parse(fs.readFileSync(path.join(old, file), 'utf8'));
+  assert.equal(row.prompt, 'prompt\ncontext');
+  assert.equal(row.bytes, Buffer.byteLength(row.prompt));
+  assert.deepEqual(row.attachments, ['x']);
+  assert.equal(fs.existsSync(path.join(old, '2000-01-01.jsonl')), false);
+});
+
+test('bulk writes newer tables once and invokes logout journal handler', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-bulk-'));
+  const cfg = { savedVariablesFile: '', agent: 'claude', forever: {
+    mentorDir: dir, journal: { enabled: true, dir: path.join(dir, 'journal'), agent: '' }, clientDir: dir,
+  } };
+  const ctx = { HERE: dir, cfg,
+    state: { forever: { bulk: {} } }, atomicWrite: (file, body) => fs.writeFileSync(file, body), saveState() {}, runAgentOnce(opts) { this.once = opts; } };
+  bulk.onSavedVariables('WoWAI_Bulk = { ah = { version=1, at=2, items={} }, journal = { version=1, at=2, logout=true, events={} }, }', ctx);
+  bulk.onSavedVariables('WoWAI_Bulk = { ah = { version=1, at=2, items={} }, }', ctx);
+  assert.ok(fs.existsSync(path.join(dir, 'bulk', 'ah.json')));
+  assert.equal(ctx.once.chat, 'journal');
+  assert.equal(ctx.state.forever.bulk.ah.version, 1);
+});
+
+test('screenshot look attaches newest and refuses agy', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-shot-'));
+  const a = path.join(dir, 'a.png'), b = path.join(dir, 'b.jpg');
+  fs.writeFileSync(a, 'a'); fs.writeFileSync(b, 'b');
+  const now = Date.now();
+  fs.utimesSync(a, new Date(now - 2000), new Date(now - 2000)); fs.utimesSync(b, new Date(now - 1000), new Date(now - 1000));
+  const ctx = { cfg: { forever: { screenshotsDir: dir, clientDir: dir }, agent: 'claude' }, state: {}, finish(job, s, t) { this.finished = t; }, log() {} };
+  screenshots.init(ctx);
+  t.after(() => screenshots.stop());
+  const job = { cmd: 'look', agent: 'claude' };
+  assert.equal(screenshots.intercept(job, ctx), false);
+  assert.deepEqual(job.images, [b]);
+  assert.equal(screenshots.intercept({ cmd: 'look', agent: 'agy' }, ctx), true);
+  assert.match(ctx.finished, /can't take images/);
+  // A screenshot older than 10 minutes is never sent.
+  fs.utimesSync(a, new Date(now - 3600000), new Date(now - 3600000)); fs.utimesSync(b, new Date(now - 3600000), new Date(now - 3600000));
+  assert.equal(screenshots.intercept({ cmd: 'look', agent: 'claude' }, ctx), true);
+  assert.match(ctx.finished, /last 10 minutes/);
+});
+
+test('council owns the job and tolerates agent timeout', async () => {
+  const calls = [];
+  const ctx = { cfg: { agents: { claude: {}, codex: {} }, forever: { council: { agents: ['claude', 'codex'], timeoutMs: 1, synthesizer: 'claude' } } },
+    async runAgentOnce(o) { calls.push(o); return o.agentId === 'codex' ? { status: 'error', text: 'timeout' } : { status: 'done', text: 'answer' }; },
+    finish(job, status, text) { this.result = text; } };
+  assert.equal(await council.intercept({ cmd: 'council', text: '[wowai cmd=council]\nquestion', cwd: '.' }, ctx), true);
+  assert.equal(calls.length, 3);
+  assert.match(ctx.result, /Missing: codex/);
+});
+
+test('phone intercept is disabled without a target and onFinish suppresses killed bridge', () => {
+  let finished;
+  const ctx = { cfg: { forever: { phone: { target: '' } } }, finish(job, status, text) { finished = text; } };
+  assert.equal(phone.intercept({ cmd: 'phone' }, ctx), true);
+  assert.match(finished, /notifications are off/);
+});
+
+test('kill switch refuses jobs and stops or restarts capture', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-kill-'));
+  const events = [];
+  const ctx = { HERE: dir, capture: { stop() { events.push('stop'); }, start() { events.push('start'); } },
+    finish(job, status, text) { this.reply = text; } };
+  fs.writeFileSync(path.join(dir, 'KILLED'), '');
+  kill.init(ctx);
+  assert.deepEqual(events, ['stop']);
+  assert.equal(kill.intercept({ cmd: 'hello' }, ctx), true);
+  assert.match(ctx.reply, /AI is off/);
+  assert.equal(kill.intercept({ cmd: 'on' }, ctx), true);
+  assert.deepEqual(events, ['stop', 'start']);
+  assert.equal(fs.existsSync(path.join(dir, 'KILLED')), false);
+});
+
+test('phone notifier invokes a fake node script with argv and never Hermes', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-phone-'));
+  const argsFile = path.join(dir, 'args.json');
+  const script = path.join(dir, 'fake-notifier.js');
+  fs.writeFileSync(script, `require('fs').writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));`);
+  const ctx = { HERE: dir, state: { forever: {} }, cfg: { forever: { phone: { target: 'telegram:42', command: script, notifyAfterMs: 1 } } }, log() {} };
+  phone.onFinish({ chat: 'abc', cmd: '', startedAt: Date.now() - 100 }, 'done', 'short answer', ctx);
+  for (let i = 0; i < 30 && !fs.existsSync(argsFile); i++) await new Promise(resolve => setTimeout(resolve, 20));
+  assert.deepEqual(JSON.parse(fs.readFileSync(argsFile, 'utf8')), ['send', '-t', 'telegram:42', '-q', 'abc: done — short answer']);
+});

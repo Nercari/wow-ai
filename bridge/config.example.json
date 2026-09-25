@@ -21,7 +21,15 @@
     "keepComposited": false
   },
   "agent": "claude",
-  "forever": { "disabled": [] },
+  "forever": {
+    "disabled": [],
+    "mentorDir": "",
+    "clientDir": "",
+    "screenshotsDir": "",
+    "journal": { "enabled": true, "dir": "", "agent": "" },
+    "council": { "agents": ["claude", "codex"], "synthesizer": "claude", "timeoutMs": 240000 },
+    "phone": { "target": "", "command": "hermes", "notifyAfterMs": 60000 }
+  },
   "agents": {
     "claude": {
       "path": "",
