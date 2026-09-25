@@ -153,3 +153,48 @@ test('lua table parser ignores __proto__ keys', () => {
   assert.equal(t.b, 2);
   assert.equal(t.a, undefined);
 });
+
+test('Sol review: rules, junctions, journal single-flight, kill switch stops agents', async () => {
+  const A = require('../../bridge/agents');
+  // An allow rule that looks like an option never reaches the CLI.
+  const args = A.AGENTS.claude.args({ cfg: { allowedTools: ['Read', '--mcp-config=evil.json'] }, resume: '', system: '' });
+  assert.ok(args.includes('Read') && !args.some(a => a.includes('mcp-config')));
+  assert.ok(!A.AGENTS.grok.args({ cfg: { allowedTools: ['-x'] }, resume: '', cwd: '.', system: '', promptFile: 'p' }).includes('-x'));
+
+  // A junction to the mentor folder is still the mentor folder.
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-junction-'));
+  const root = path.join(base, 'mentor'), link = path.join(base, 'link');
+  fs.mkdirSync(root);
+  try { fs.symlinkSync(root, link, 'junction'); } catch { /* no permission: skip this part */ }
+  if (fs.existsSync(link)) assert.ok(mentor.inside(link, root));
+  fs.rmSync(base, { recursive: true, force: true });
+
+  // Blank lines don't make the SavedVariables search quadratic.
+  const { parseGlobal } = require('../../bridge/forever/lua-table');
+  const before = Date.now();
+  assert.equal(parseGlobal('\n'.repeat(200000), 'WoWAI_Bulk'), undefined);
+  assert.ok(Date.now() - before < 1000);
+
+  // Two journal logouts in a row start one agent.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-journal-'));
+  let runs = 0, release;
+  const ctx = { cfg: { agent: 'claude', forever: { mentorDir: dir, clientDir: dir, journal: { dir, enabled: true } } },
+    state: { forever: { bulk: {} } }, saveState() {}, atomicWrite: (f, t) => fs.writeFileSync(f, t),
+    runAgentOnce() { runs++; return new Promise(r => { release = r; }); } };
+  bulk.init(ctx);
+  bulk.onSavedVariables('WoWAI_Bulk = { ["journal"] = { ["version"] = 1, ["at"] = 1, ["logout"] = true } }', ctx);
+  bulk.onSavedVariables('WoWAI_Bulk = { ["journal"] = { ["version"] = 2, ["at"] = 2, ["logout"] = true } }', ctx);
+  assert.equal(runs, 1);
+  release({ status: 'done' });
+  await new Promise(r => setImmediate(r));
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // /wowai off stops running agents.
+  const killDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-kill2-'));
+  let stopped = 0;
+  const kctx = { HERE: killDir, capture: { stop() {}, start() {} }, stopRunning() { stopped++; }, finish() {} };
+  kill.init(kctx);
+  kill.intercept({ cmd: 'off' }, kctx);
+  assert.equal(stopped, 1);
+  fs.rmSync(killDir, { recursive: true, force: true });
+});

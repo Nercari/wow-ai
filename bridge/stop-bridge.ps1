@@ -54,7 +54,8 @@ foreach ($process in $candidates) {
         continue
     }
     if ($targets -contains $resolved) {
-        Stop-Process -Id $process.ProcessId -Force
+        # /T: the agents the bridge started die with it.
+        & taskkill.exe /PID $process.ProcessId /T /F | Out-Null
     }
 }
 

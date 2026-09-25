@@ -1,8 +1,10 @@
 'use strict';
+const fs = require('fs');
 const path = require('path');
 function inside(cwd, root) {
-  // Windows paths are case-insensitive; path.relative is not.
-  const norm = p => process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p);
+  // Resolve junctions and symlinks (the agent runs in the real folder); Windows paths are case-insensitive.
+  const real = p => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
+  const norm = p => process.platform === 'win32' ? real(p).toLowerCase() : real(p);
   const rel = path.relative(norm(root), norm(cwd));
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }

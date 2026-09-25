@@ -30,7 +30,10 @@ module.exports = {
         const prompt = `[wowai cmd=journal]\nWrite today's session story per AGENTS.md (Journal) ` +
           `from bulk/journal.json into ${outputFile}. Screenshots folder: ` +
           `${ctx.cfg.forever.clientDir}\\Screenshots.`;
-        ctx.runAgentOnce({ agentId: ctx.cfg.forever.journal.agent || ctx.cfg.agent, cwd: mentorDir, chat: 'journal', prompt });
+        // One journal run at a time, however often the file changes.
+        if (this.journalRun) continue;
+        this.journalRun = Promise.resolve(ctx.runAgentOnce({ agentId: ctx.cfg.forever.journal.agent || ctx.cfg.agent, cwd: mentorDir, chat: 'journal', prompt }))
+          .finally(() => { this.journalRun = null; });
       }
     }
   },

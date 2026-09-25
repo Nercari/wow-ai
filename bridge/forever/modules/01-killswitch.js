@@ -14,6 +14,7 @@ module.exports = {
       fs.writeFileSync(this.file, JSON.stringify({ at: new Date().toISOString(), by: job.chat || '' }));
       this.off = true;
       ctx.capture.stop();
+      if (ctx.stopRunning) ctx.stopRunning();
       ctx.finish(job, 'done', 'AI is off. /wowai on to resume.');
       return true;
     }

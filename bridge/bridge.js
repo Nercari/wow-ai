@@ -448,11 +448,22 @@ function allowRules(agentId, rules) {
 }
 
 // Run an agent without this bridge's chat/session/transcript bookkeeping.
+const onceChildren = new Set(); // agents started by runAgentOnce (council, journal)
+
+// Stop every agent this bridge started (the kill switch).
+function stopRunning() {
+  for (const { child } of running.values()) if (child) killTree(child);
+  for (const child of onceChildren) killTree(child);
+}
+
 function runAgentOnce(options) {
+  // The kill switch covers one-off runs too (the journal starts them without a job).
+  if (fs.existsSync(path.join(HERE, 'KILLED'))) return Promise.resolve({ status: 'error', text: 'AI is off.', elapsedMs: 0 });
   const started = Date.now();
   Forever.onRun({ job: { chat: options.chat || 'council', cwd: options.cwd, text: options.prompt }, agentId: options.agentId,
     cwd: options.cwd, prompt: String(options.prompt || ''), promptBytes: Buffer.byteLength(String(options.prompt || '')) });
-  return runAgent(options, { A, P, cfg, killTree, augment: (job, info) => Forever.augment(job, info) }).then(result => { result.elapsedMs = Date.now() - started; return result; });
+  const onSpawn = child => { onceChildren.add(child); child.on('close', () => onceChildren.delete(child)); };
+  return runAgent(options, { A, P, cfg, killTree, onSpawn, augment: (job, info) => Forever.augment(job, info) }).then(result => { result.elapsedMs = Date.now() - started; return result; });
 }
 
 // ---------------------------------------------------------------------------
@@ -845,7 +856,7 @@ function banner() {
 banner();
 Forever.load(path.join(HERE, 'forever', 'modules'), cfg.forever && cfg.forever.disabled || []);
 Forever.init({ cfg, log, HERE, REPO, SAVED_VARS, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce,
-  capture: { stop: stopCapture, start: startCapture, running: captureRunning },
+  capture: { stop: stopCapture, start: startCapture, running: captureRunning }, stopRunning,
   transcript: chat => {
     const messages = transcripts.chats[chat] && transcripts.chats[chat].messages || [];
     const last = [...messages].reverse().find(m => m.role === 'assistant');

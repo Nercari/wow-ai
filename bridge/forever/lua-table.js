@@ -78,7 +78,8 @@ function parse(src) {
   ws(); const result = value(); ws(); return result;
 }
 function parseGlobal(src, name) {
-  const re = new RegExp(`(?:^|\\n)\\s*${String(name).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*=`);
+  // [ \t]* rather than \s*: \s* would rescan every following newline (quadratic on blank lines).
+  const re = new RegExp(`(?:^|\\n)[ \\t]*${String(name).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}[ \\t]*=`);
   const m = re.exec(String(src));
   return m ? parse(String(src).slice(m.index + m[0].length)) : undefined;
 }

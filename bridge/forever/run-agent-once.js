@@ -6,7 +6,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 function runAgentOnce({ agentId, cwd, prompt, timeoutMs }, deps) {
-  const { A, P, cfg, killTree, augment } = deps;
+  const { A, P, cfg, killTree, augment, onSpawn } = deps;
   agentId = A.normalizeAgent(agentId);
   if (!agentId) return Promise.resolve({ status: 'error', text: 'Unknown agent.' });
   const agent = A.AGENTS[agentId], acfg = A.agentConfig(cfg, agentId), cmd = A.resolveCommand(agentId, acfg);
@@ -27,6 +27,7 @@ function runAgentOnce({ agentId, cwd, prompt, timeoutMs }, deps) {
   const env = agent.env({ ...process.env });
   return new Promise(resolve => {
     const child = spawn(cmd.file, args, { cwd, env, windowsHide: true, stdio: [input.stdin !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe'] });
+    if (onSpawn) onSpawn(child);
     const parser = agent.parser(); let buffer = '', stdoutText = '', stderr = '', result = null, ended = false;
     const done = (status, text) => {
       if (ended) return; ended = true; clearTimeout(timer);
