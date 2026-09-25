@@ -39,10 +39,10 @@ local function StyleHeader(parts)
 	if not parts.title then return end
 	local plaque = parts.frame:CreateTexture(nil, "ARTWORK")
 	plaque:SetSize(256, 64)
-	plaque:SetPoint("BOTTOM", parts.frame, "TOP", 0, 12)
+	plaque:SetPoint("TOP", parts.frame, "TOP", 0, 12)
 	Texture(plaque, "Interface\\DialogFrame\\UI-DialogBox-Header")
 	parts.title:ClearAllPoints()
-	parts.title:SetPoint("CENTER", plaque, "CENTER", 0, 4)
+	parts.title:SetPoint("TOP", plaque, "TOP", 0, -14)
 	parts.title:SetFontObject("GameFontNormal")
 	parts.header = plaque
 end
@@ -251,6 +251,7 @@ WoWAIForever.On("UI_BUILT", function(parts)
 						row.label:SetTextColor(color.r or color[1], color.g or color[2], color.b or color[3])
 					else
 						row.label:SetFontObject("GameFontHighlightSmall")
+						row.label:SetTextColor(1, 1, 1)
 					end
 				end
 			end
