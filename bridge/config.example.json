@@ -21,6 +21,7 @@
     "keepComposited": false
   },
   "agent": "claude",
+  "forever": { "disabled": [] },
   "agents": {
     "claude": {
       "path": "",

@@ -30,6 +30,8 @@ const readline = require('readline');
 const { spawn } = require('child_process');
 const P = require('./protocol'); // the pure protocol code, unit-tested in tests/bridge_test.js
 const A = require('./agents');   // how each agent is launched and read, unit-tested in tests/agents_test.js
+const Forever = require('./forever');
+const { runAgentOnce: runAgent } = require('./forever/run-agent-once');
 
 const HERE = __dirname;
 const CONFIG_FILE = path.join(HERE, 'config.json');
@@ -430,6 +432,11 @@ function allowRules(agentId, rules) {
   return added;
 }
 
+// Run an agent without this bridge's chat/session/transcript bookkeeping.
+function runAgentOnce(options) {
+  return runAgent(options, { A, P, cfg, killTree });
+}
+
 // ---------------------------------------------------------------------------
 // Running an agent
 // ---------------------------------------------------------------------------
@@ -458,6 +465,17 @@ function submit(job) {
     log(`hello from session ${job.session}${pendingRestore ? ' (restore offered)' : ''}`);
     return;
   }
+  let ownership;
+  try { ownership = Forever.intercept(job); } catch (e) { log('forever intercept failed:', e.message); }
+  if (ownership && typeof ownership.then === 'function') {
+    ownership.then(owned => { if (!owned) queueJob(job); }, e => { log('forever intercept failed:', e.message); queueJob(job); });
+    return;
+  }
+  if (ownership) return;
+  queueJob(job);
+}
+
+function queueJob(job) {
   const key = chatKey(job);
   const cur = running.get(key);
   if (cur && cur.job.id === job.id) return;
@@ -540,12 +558,12 @@ function runJob(job) {
   const system = P.systemPrompt(ctx, primer());
   const systemShort = P.systemPrompt(ctx, '');
   const promptFile = path.join(TMP_DIR, `prompt-${job.id}-${Date.now().toString(36)}.txt`);
-  const input = agent.input({ prompt: job.text, system, systemShort, resume });
+  const input = agent.input({ prompt: job.text, system, systemShort, resume, images: job.images });
   if (input.promptFile !== undefined) {
     try { fs.mkdirSync(TMP_DIR, { recursive: true }); fs.writeFileSync(promptFile, input.promptFile); }
     catch (e) { finish(job, 'error', `Could not write the prompt file ${promptFile}: ${e.message}`); return; }
   }
-  const args = [...cmd.args, ...agent.args({ cfg: acfg, resume, cwd, system, systemShort, promptFile })];
+  const args = [...cmd.args, ...agent.args({ cfg: acfg, resume, cwd, system, systemShort, promptFile, images: job.images })];
   const env = agent.env({ ...process.env });
   // Where this run's tools append map commands (docs/MAP.md); any agent can use it.
   try {
@@ -555,7 +573,10 @@ function runJob(job) {
   } catch (e) { log(`${tag} map file unavailable: ${e.message}`); }
 
   log(`${tag} (${job.via}) ${agent.name} starting in ${cwd}${resume ? ' (resume ' + resume.slice(0, 8) + ')' : ' (new session)'}${ctx ? ' [game context]' : ''}${running.size ? ' [' + (running.size + 1) + ' running]' : ''}`);
+  const runInfo = { agentId, cwd, args, input, env };
+  Forever.augment(job, runInfo);
   const child = spawn(cmd.file, args, { cwd, env, windowsHide: true, stdio: [input.stdin !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe'] });
+  Forever.onRun({ job, agentId, cwd, args, promptBytes: Buffer.byteLength(String(input.stdin || '')) });
   running.set(key, { job, child });
   publish(key, { chat: job.chat, id: job.id, status: 'working', text: resume ? 'thinking...' : 'starting a new session...', cwd, session: resume, agent: agentId }, true);
   if (input.stdin !== undefined) { child.stdin.on('error', () => {}); child.stdin.end(input.stdin); }
@@ -658,6 +679,7 @@ function runJob(job) {
 
 function finish(job, status, text, session, denied) {
   if (job.finished) return; // spawn failures fire both 'error' and 'close'
+  Forever.onFinish(job, status, text);
   job.finished = true;
   running.delete(chatKey(job));
   markHandled(job);
@@ -754,6 +776,9 @@ function banner() {
 }
 
 banner();
+Forever.load(path.join(HERE, 'forever', 'modules'), cfg.forever && cfg.forever.disabled || []);
+Forever.init({ cfg, log, HERE, REPO, state, saveState, atomicWrite, submit, finish, publish, chatKey, runAgentOnce });
+process.on('exit', () => Forever.stop());
 if (inject !== null) {
   submit({ id: state.lastId + 1, session: '', chat: '', text: inject, cwd: '', newSession: false, via: 'inject', agent: injectAgent || '' });
 } else {

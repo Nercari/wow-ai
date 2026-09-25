@@ -19,6 +19,12 @@
 local ADDON_NAME = ...
 local WoWAI = {}
 _G.WoWAI = WoWAI
+local function ForeverModules() return WoWAIForever and WoWAIForever.modules or {} end
+local function ForeverBlocked()
+	for _, mod in ipairs(ForeverModules()) do
+		if type(mod.blocked) == "function" then local ok, reason = pcall(mod.blocked); if ok and reason and tostring(reason) ~= "" then return tostring(reason) end end
+	end
+end
 local Codec = WoWAI_Codec
 
 local DEFAULT_CWD = "" -- empty = the bridge's configured defaultCwd
@@ -383,6 +389,7 @@ end
 
 -- Redraw the strip from every outbound message the bridge hasn't acknowledged.
 local function RefreshStrip()
+	if ForeverBlocked() then HideStrip(); return end
 	local ids = {}
 	for id, rec in pairs(run.outbound) do
 		if not rec.acked then table.insert(ids, id) end
@@ -688,7 +695,7 @@ local Finish -- defined below
 -- what the bridge knows, so later messages only carry it again if it changes.
 local function NoteAcked(rec)
 	rec.acked = true
-	if rec.ctx ~= nil then run.contextSent = rec.ctx end
+	if rec.temporaryContext then run.contextSent = nil elseif rec.ctx ~= nil then run.contextSent = rec.ctx end
 end
 
 local function MarkAcked(id)
@@ -715,6 +722,9 @@ local function ApplyReplies(replies)
 				Finish(c, "system", "Bridge error: " .. tostring(r.text), denied)
 			elseif r.status == "working" then
 				c.progress = r.text
+			end
+			if r.status == "done" or r.status == "error" then
+				for _, mod in ipairs(ForeverModules()) do if type(mod.onReply) == "function" then pcall(mod.onReply, c, r) end end
 			end
 		end
 	end
@@ -815,6 +825,7 @@ local function Tick()
 		run.lastIdlePoll = now
 		TryLoadSlot("idle")
 	end
+	RefreshStrip()
 	WoWAI.UpdateDot()
 	WoWAI.CheckConnection()
 	if db.settings.mode ~= "pixel" then return end
@@ -1106,6 +1117,14 @@ function WoWAI.GameContext()
 	end
 	if #quests > 0 then table.insert(lines, "Quest log (id, * = ready to turn in): " .. table.concat(quests, ",")) end
 
+	local extra = {}
+	for _, mod in ipairs(ForeverModules()) do
+		if type(mod.context) == "function" then
+			local ok, value = pcall(mod.context, "game")
+			if ok and type(value) == "string" and value ~= "" then table.insert(extra, value:sub(1, 300)) end
+		end
+	end
+	for _, value in ipairs(extra) do table.insert(lines, value) end
 	local s = table.concat(lines, "\n"):gsub("[\30\31]", " ")
 	if #s > CONTEXT_MAX then s = s:sub(1, CONTEXT_MAX) end
 	return s
@@ -1189,8 +1208,11 @@ end
 ---------------------------------------------------------------------------
 
 -- allow: optional list of permission rules to grant before this message runs.
-function WoWAI.Send(text, allow)
+function WoWAI.Send(text, allow, opts)
 	local c = ActiveChat()
+	local blocked = ForeverBlocked()
+	if blocked then if c then AddHistory(c, "system", blocked); WoWAI.Render() end; return end
+	opts = type(opts) == "table" and opts or {}
 	if not c then return end
 	text = Trim(text or "")
 	if c.pendingId then
@@ -1225,12 +1247,19 @@ function WoWAI.Send(text, allow)
 	end
 	-- The game context rides along when the bridge doesn't have this version yet.
 	local ctx = ContextToSend(limit - #text)
+	local temporaryContext = type(opts.context) == "string" and opts.context ~= ""
+	if temporaryContext then
+		ctx = db.settings.context and WoWAI.GameContext() or ""
+		local addition = opts.context:sub(1, math.max(0, limit - #text - #(ctx or "") - 1))
+		ctx = ctx and (ctx .. "\n" .. addition) or addition
+	end
 
 	db.lastSeq = db.lastSeq + 1
 	local id = db.lastSeq
 	local tokens = {}
 	if c.resetNext then table.insert(tokens, "n") end
 	if c.agent and c.agent ~= "" then table.insert(tokens, "agent=" .. c.agent) end
+	if type(opts.cmd) == "string" and opts.cmd:match("^[a-z0-9-]+$") and #opts.cmd <= 24 then table.insert(tokens, "cmd=" .. opts.cmd) end
 	local allowHex
 	if type(allow) == "table" and #allow > 0 then
 		table.insert(tokens, "allow=" .. table.concat(allow, ","))
@@ -1248,6 +1277,7 @@ function WoWAI.Send(text, allow)
 		ctx = ctx and ToHex(ctx) or nil,
 		agent = (c.agent and c.agent ~= "") and c.agent or nil,
 		allow = allowHex,
+		cmd = (type(opts.cmd) == "string" and opts.cmd:match("^[a-z0-9-]+$") and #opts.cmd <= 24) and opts.cmd or nil,
 		newSession = newSession,
 		t = time(),
 	}
@@ -1267,7 +1297,7 @@ function WoWAI.Send(text, allow)
 	db.settings.shown = true
 
 	if db.settings.mode == "pixel" then
-		run.outbound[id] = { chat = c.id, cwd = c.cwd, flags = flags, name = c.name, text = text, ctx = ctx, sentAt = GetTime() }
+		run.outbound[id] = { chat = c.id, cwd = c.cwd, flags = flags, name = c.name, text = text, ctx = ctx, temporaryContext = temporaryContext, sentAt = GetTime() }
 		run.sentAt = GetTime()
 		run.polls = 0
 		StartActivity(c, id)
@@ -2694,6 +2724,7 @@ local COMMAND_ARGS = {
 }
 
 local function IsCommand(cmd, rest)
+	for _, mod in ipairs(ForeverModules()) do if type(mod.commands) == "table" and type(mod.commands[cmd]) == "function" then return true end end
 	local spec = COMMAND_ARGS[cmd]
 	if spec == nil then return false end
 	if spec == true then return true end
@@ -2720,6 +2751,10 @@ SlashCmdList["WOWAI"] = function(msg)
 	cmd = cmd and cmd:lower() or ""
 	local s = db.settings
 	local c = ActiveChat()
+	for _, mod in ipairs(ForeverModules()) do
+		local handler = type(mod.commands) == "table" and mod.commands[cmd]
+		if cmd ~= "" and type(handler) == "function" then pcall(handler, rest, c); return end
+	end
 
 	-- Anything that isn't a command, or a command word followed by something it
 	-- doesn't take, is a message for the agent.
@@ -2903,6 +2938,8 @@ SlashCmdList["WOWAI"] = function(msg)
 		WoWAI.Toggle(true)
 	end
 end
+
+WoWAI.internal = { AddHistory = AddHistory, ActiveChat = ActiveChat, Render = WoWAI.Render, RefreshStrip = RefreshStrip, FindChat = FindChat }
 
 ---------------------------------------------------------------------------
 -- Events

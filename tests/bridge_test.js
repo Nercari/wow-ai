@@ -13,7 +13,7 @@ test('luaStr escapes everything Lua 5.1 needs', () => {
 });
 
 test('parseFlags reads new-session, hello, forget, context, agent and allow lists', () => {
-  const none = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '' };
+  const none = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '', cmd: '' };
   assert.deepEqual(P.parseFlags(''), none);
   assert.deepEqual(P.parseFlags('n'), { ...none, newSession: true });
   assert.deepEqual(P.parseFlags('h'), { ...none, hello: true });
@@ -28,7 +28,7 @@ test('jobsFromStrip parses the current record format and keeps separators inside
   const rec = ['sess', 'chat1', '12', 'realms', 'allow=WebSearch', 'My chat', 'hello\x1Fworld'].join('\x1F');
   const jobs = P.jobsFromStrip(12, rec);
   assert.equal(jobs.length, 1);
-  assert.deepEqual(jobs[0], { session: 'sess', chat: 'chat1', id: 12, cwd: 'realms', newSession: false, hello: false, forget: false, context: false, allow: ['WebSearch'], agent: '', name: 'My chat', text: 'hello\x1Fworld', via: 'pixel' });
+  assert.deepEqual(jobs[0], { session: 'sess', chat: 'chat1', id: 12, cwd: 'realms', newSession: false, hello: false, forget: false, context: false, allow: ['WebSearch'], agent: '', cmd: '', name: 'My chat', text: 'hello\x1Fworld', via: 'pixel' });
   // A chat that picked its own agent says so in the flags.
   const codex = P.jobsFromStrip(13, ['sess', 'chat1', '13', '', 'agent=codex', 'My chat', 'hi'].join('\x1F'))[0];
   assert.equal(codex.agent, 'codex');
@@ -195,4 +195,12 @@ test('slotNumber wraps and SILENT_WAV is a valid RIFF header', () => {
   assert.equal(P.chatKey({ session: 's', chat: 'c' }), 's:c');
   assert.equal(P.sessKey({ session: 's', chat: 'c' }), 'chat:c');
   assert.equal(P.sessKey({ session: 's', chat: '' }), 's:default');
+});
+
+
+test('cmd flags accept only lowercase constrained names', () => {
+  assert.equal(P.parseFlags('cmd=look').cmd, 'look');
+  assert.equal(P.parseFlags('cmd=Look').cmd, '');
+  assert.equal(P.parseFlags('cmd=a_b').cmd, '');
+  assert.equal(P.parseFlags('cmd=' + 'a'.repeat(25)).cmd, '');
 });

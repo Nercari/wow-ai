@@ -13,6 +13,10 @@ The bridge reads `config.json` once at start. Restart it after editing, except f
 | `savedVariablesFile` | `…\WTF\Account\<account>\SavedVariables\WoWAI.lua` | The addon's saved data. The bridge polls it for the reload-path outbox. `setup.js` picks the first account under `WTF\Account`; pass `--account <name>` to choose another. |
 | `defaultCwd` | `C:\path\to\your\project` | Folder for chats that have not chosen one with `/wow-ai cd`, when the bridge is started from inside this repo (`npm start`). See [Which folder the agent works in](#which-folder-the-agent-works-in). |
 
+## Extensions
+
+`forever.disabled` is a list of bridge module filenames without `.js` to skip. Modules live in `bridge/forever/modules/`; see [FOREVER.md](FOREVER.md) for the hook contract.
+
 ## Agents
 
 | Key | Default | Meaning |

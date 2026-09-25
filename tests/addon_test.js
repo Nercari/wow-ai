@@ -34,7 +34,7 @@ function newVM() {
   };
   const num = (expr) => Number(evaluate(expr));
   run(fs.readFileSync(path.join(__dirname, 'wow_stub.lua'), 'utf8'));
-  for (const f of ['Codec.lua', 'Inbox.lua', 'WoWAI.lua']) run(fs.readFileSync(path.join(ADDON, f), 'utf8'), 'WoWAI');
+  for (const f of ['Codec.lua', 'Inbox.lua', 'Forever.lua', 'WoWAI.lua']) run(fs.readFileSync(path.join(ADDON, f), 'utf8'), 'WoWAI');
   return { run, evaluate, num };
 }
 
@@ -714,4 +714,28 @@ test('reload mode writes the outbox for the bridge instead of drawing the strip'
   assert.equal(vm.evaluate('WoWAIDB.outbox.text'), Buffer.from('via reload').toString('hex'));
   assert.equal(Buffer.from(vm.evaluate('WoWAIDB.outbox.allow'), 'hex').toString('utf8'), 'WebSearch\x1fBash(git:*)');
   assert.equal(decodeStrip(vm), null);
+});
+
+
+test('Forever blocks sends, dispatches commands, observes replies and supports cmd flags', () => {
+  const vm = newVM();
+  vm.run(`WoWAIForever.Register({
+    blocked = function() return STUB.blocked and "AI paused in combat" end,
+    commands = { zzz = function(rest) STUB.command = rest end },
+    onReply = function(chat, rec) STUB.replyStatus = rec.status end,
+  })`);
+  login(vm);
+  vm.run('STUB.blocked = true; WoWAI.Send("blocked")');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text'), 'AI paused in combat');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null);
+  vm.run('SlashCmdList.WOWAI("zzz hi there")');
+  assert.equal(vm.evaluate('STUB.command'), 'hi there');
+  vm.run('STUB.blocked = false');
+  connect(vm);
+  vm.run('WoWAI.Send("hello", nil, { cmd = "look" })');
+  assert.match(stripRecords(vm).at(-1).flags, /cmd=look/);
+  const id = vm.num('WoWAIDB.chats[1].pendingId');
+  nextSlot(vm, `{ now = time(), cwd = "", replies = { { chat = "${vm.evaluate('WoWAIDB.chats[1].id')}", id = ${id}, status = "done", text = "ok" } } }`);
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  assert.equal(vm.evaluate('STUB.replyStatus'), 'done');
 });

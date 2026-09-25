@@ -115,7 +115,7 @@ function sameFolder(a, b) {
 // empty one clears the context the bridge keeps), "agent=codex" = run this
 // chat with that agent instead of the bridge's default (see agents.js).
 function parseFlags(flags) {
-  const out = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '' };
+  const out = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '', cmd: '' };
   for (const tok of String(flags || '').split(';')) {
     if (tok === 'n') out.newSession = true;
     else if (tok === 'h') out.hello = true;
@@ -123,6 +123,7 @@ function parseFlags(flags) {
     else if (tok === 'c') out.context = true;
     else if (tok.startsWith('allow=')) out.allow.push(...tok.slice(6).split(',').map(s => s.trim()).filter(Boolean));
     else if (tok.startsWith('agent=')) out.agent = tok.slice(6).trim().toLowerCase();
+    else if (tok.startsWith('cmd=')) { const cmd = tok.slice(4); if (/^[a-z0-9-]{1,24}$/.test(cmd)) out.cmd = cmd; }
   }
   return out;
 }
@@ -171,6 +172,8 @@ function parseOutbox(src) {
   if (agent && agent[1]) job.agent = agent[1].toLowerCase();
   const allow = b.match(/\["allow"\]\s*=\s*"([0-9a-fA-F]*)"/);
   if (allow && allow[1]) job.allow = fromHex(allow[1]).split('\x1F').filter(Boolean);
+  const cmd = b.match(/\["cmd"\]\s*=\s*"([a-z0-9-]{1,24})"/);
+  if (cmd) job.cmd = cmd[1];
   return job;
 }
 
