@@ -31,7 +31,7 @@ test('command prefix and mentor argument rewrites', () => {
   assert.equal(job.text, '[wowai cmd=journal]\ngo');
   const claude = mentor.rewrite('claude', ['--permission-mode', 'default', '--allowedTools', 'Bash(*)', '--resume', 'x'], '/mentor', '/repo');
   assert.deepEqual(claude.slice(0, 3), ['--resume', 'x', '--permission-mode']);
-  assert.ok(claude.includes('Read') && claude.includes(`Bash(node ${path.join('/repo', 'tools', 'slice-fight.js')}:*)`));
+  assert.ok(claude.includes('Read') && claude.includes(`Bash(node ${path.join('/repo', 'tools', 'slice-fight.js')}:*)`) && claude.includes(`Bash(node ${path.join('/repo', 'tools', 'check-citations.js')}:*)`));
   assert.deepEqual(mentor.rewrite('codex', ['-s', 'read-only', '-C', '/old'], '/mentor', '/repo'), ['-s', 'workspace-write', '-C', '/mentor']);
   assert.deepEqual(mentor.rewrite('agy', [], '/mentor', '/repo'), ['--mode', 'accept-edits', '--add-dir', '/mentor']);
   // Bypass flags never survive into a mentor chat.

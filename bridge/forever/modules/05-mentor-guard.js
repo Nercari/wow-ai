@@ -26,7 +26,8 @@ function rewrite(agent, args, cwd, repo) {
         while (i < args.length && !args[i].startsWith('-')) args.splice(i, 1);
       } else i++;
     }
-    args.push('--allowedTools', 'Read', 'Grep', 'Glob', 'Edit', 'Write', 'WebFetch', 'WebSearch', `Bash(node ${path.join(repo, 'tools', 'slice-fight.js')}:*)`);
+    args.push('--allowedTools', 'Read', 'Grep', 'Glob', 'Edit', 'Write', 'WebFetch', 'WebSearch', `Bash(node ${path.join(repo, 'tools', 'slice-fight.js')}:*)`,
+      `Bash(node ${path.join(repo, 'tools', 'check-citations.js')}:*)`);
   } else if (agent === 'codex') {
     // codex exec ends with its prompt positional `[resume <id>] -`; options go before it.
     const dash = args.lastIndexOf('-');

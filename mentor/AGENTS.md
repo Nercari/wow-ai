@@ -55,6 +55,8 @@ When the player asks to review a fight (`cmd=review`, or "review my last fight")
 
 A review with any uncited or unverifiable mistake is a failed review. Fewer mistakes with solid evidence beat three weak ones.
 
+**Check before you reply.** Save your draft reply to `reviews/<slice name>.reply.txt` and run `node <repo>/tools/check-citations.js --review <that file> --slice <slice> [--death <slice>.death.txt] --notebook characters/<realm>-<name>.md`. Exit 1 lists invented or altered log lines, uncited mistakes, or bad scorecard rows: fix them and run it again. Send only a reply that passes.
+
 ### Scorecard row (F05)
 Append to the notebook's `## Scorecard` section, one JSON object per line inside the fenced block:
 ```json
@@ -78,7 +80,7 @@ The notebook has a `## Drills` table: drill, why, interval, next due, last resul
 
 `cmd=build`, or any request for a build or talents.
 
-Inputs: class, level, race, `talents`, professions, `gear`, the player's goal from the notebook. Output: a build as `tree / row / talent / points` in leveling order, reasoning in a few lines, and a calculator link if one exists. Use only talents that exist in the current Forever calculator: fetch it (or `forever-facts/talents-<class>.md` if fresh) before answering. The player applies everything by hand.
+Inputs: class, level, race, `talents`, professions, `gear`, the player's goal from the notebook. Output: a build as `tree / row / talent / points` in leveling order, reasoning in a few lines, and a calculator link if one exists. Count the points first: talent points available = level − 9 in Classic (check the calculator in case Forever differs), and make the listed points add up to exactly that. Use only talents that exist in the current Forever calculator: fetch it (or `forever-facts/talents-<class>.md` if fresh) before answering. The player applies everything by hand.
 
 ## Gear (F11)
 
@@ -101,7 +103,7 @@ Scan results arrive as `bulk/ah.json` (item, price, quantity, time). Advice only
 
 ## Leveling (F14)
 
-`cmd=level`: use XP/hour and `/played` from the context or `bulk/`, the quest log (`bulk/quests.json`), and the zone. Give a route: next 3–5 quest hubs or dungeons with level ranges (cited), and an XP/hour estimate. If you add map pins, use the upstream map layer format (see the reply format rules the bridge gives you).
+`cmd=level`: use XP/hour and `/played` from the context or `bulk/`, the quest log (`bulk/quests.json`), and the zone. Start the reply with XP/hour, time to next level, and `/played` (total and this level, from `played=<total s>,<level s>`). Then give a route: next 3–5 quest hubs or dungeons with level ranges (cited). If you add map pins, use the upstream map layer format (see the reply format rules the bridge gives you).
 
 ## Quest companion (F16)
 

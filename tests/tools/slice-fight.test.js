@@ -61,6 +61,20 @@ test("filters player events and structural events within padding, and writes dea
   assert.match(death, /SPELL_DAMAGE/);
   assert.match(death, /SPELL_HEAL/);
 });
+test("keeps the timestamped version header from the file start and reads logs without a year", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "slice-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const year = new Date().getFullYear();
+  const header = "1/2 02:50:00.000  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,0,BUILD_VERSION,1.60.1,PROJECT_ID,2";
+  const hit = `1/2 03:04:01.1234  SPELL_DAMAGE,Creature-0-1,"Mob",0xa48,Player-1,"Hero-Realm",0x511`;
+  await fs.writeFile(path.join(dir, "WoWCombatLog-010226_025000.txt"), [header, hit].join("\n") + "\n");
+  const out = path.join(dir, "out.txt");
+  const r = spawnSync(process.execPath, [TOOL, "--logs", dir, "--start", `${year}-01-02T03:04:00`, "--end", `${year}-01-02T03:04:02`,
+    "--player", "Hero-Realm", "--out", out], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  const lines = (await fs.readFile(out, "utf8")).trim().split("\n");
+  assert.deepEqual(lines.slice(1), [header, hit]);
+});
 test("no overlapping logs returns documented code", async (t) => {
   const d = await fixture(t, [logLine(0, "SPELL_DAMAGE")]);
   const out = path.join(d, "out");
