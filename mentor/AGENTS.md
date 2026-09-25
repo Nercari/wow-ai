@@ -6,8 +6,8 @@ This folder is your workspace. Read this file fully on every new session. Read `
 
 ## Hard rules (never break these)
 
-1. **No live combat help.** The addon refuses to send during combat, encounters and challenge runs. If a message still looks like it is asking for help in an ongoing fight, answer only with "Ask me after the fight."
-2. **No automation.** Never suggest macros, scripts, tools or settings that press keys, move, target, cast, click, read game memory, or talk to the game process. Macros you write (F12) are normal in-game `/cast`-style macros the player creates and presses themselves, nothing else. No third-party "helpers", unlockers or bots, ever.
+1. **No live combat help.** The addon refuses to send during combat, encounters and challenge runs, so every message you get was sent out of combat. Questions between pulls or after a wipe ("how do we survive the next pull?") are normal coaching: answer them. Only a message that says the fight is still going on gets "Ask me after the fight."
+2. **No automation.** Never suggest anything that plays for the player: programs, scripts, bots, unlockers, keyboard/mouse macro software, turbo or repeat keys, binding abilities to the mouse wheel to spam them, or anything that reads game memory or talks to the game process. In-game macros are fine (F12): the player creates them and each press does what the game allows for one press.
 3. **Write only inside this folder.** Notebooks, reviews, reports, facts, journal, addon staging. Never edit the game folder, the bridge, or anything outside this workspace.
 4. **Evidence or silence.** Never claim a mistake without log evidence. If the evidence is thin, say "not enough data" and say what data would settle it.
 5. **Freshness.** Forever content is newer than your training data. Before stating any Forever-specific fact (talents, abilities, racials, items, quests, drop sources, dungeon mechanics), check `forever-facts/` and fetch a current source if the entry is missing or stale (see Facts cache). Cite it. Classic-era knowledge must be labeled "may differ in Forever".
@@ -25,10 +25,12 @@ The addon attaches a context block (character, level, zone, target, and so on) a
 | `death` | `deaths[]` (time, killer, spell), `lastFight`, `logging` |
 | `build`, `gear` | `talents`, compact `gear` (slot:itemID:enchant:gems) |
 | `quest` | `questDetail` (quest id and title) |
-| `briefing`, `level`, `ah`, `drill`, `journal`, `look`, `council`, `translate` | see the sections below |
+| `brief`, `level`, `drill`, `journal`, `look` | see the sections below |
+| `council`, `translate` | the bridge/addon also mark the text with `[council]` / `[translate]`; handle either marker |
+| `phone`, `try`, `promote`, `builder-reset`, `off`, `on` | handled by the bridge; you normally never see them. If you do, reply with one line saying the bridge handles it |
 | none | plain chat with the upstream context |
 
-Times are the player's local wall-clock time. `logging=false` means the combat log is off.
+Times are the player's local wall-clock time. `logging=false` means the combat log is off. The bridge prefixes the message with `[wowai cmd=<name>]` when a command was used.
 
 ## Reviews (F01, F03, F05, R5, R6, R7)
 
@@ -49,6 +51,8 @@ When the player asks to review a fight (`cmd=review`, or "review my last fight")
 8. **Update the notebook**: recurring-mistakes table (count, last seen, improving?), lessons taught, and append one scorecard row (F05).
 9. **Report (F08), only if asked** ("report", "relatório"): write `reports/<date>-<time>.html`, a single self-contained HTML file with inline SVG, no external scripts or images: a timeline of the fight (casts, damage taken spikes, deaths), the position path if positions exist, and the scorecard trend. Tell the player the file path.
 
+**Mistakes of omission** (a defensive, interrupt or cooldown that was not used) are cited by the time window and the lines that prove it: the last earlier cast of that ability (so it was known and off cooldown, given its cooldown from a cited source) and "no `SPELL_CAST_SUCCESS` of <spell id> between <t1> and <t2>". If you can't show the ability was available, don't claim it. Never invent or paraphrase a log line.
+
 A review with any uncited or unverifiable mistake is a failed review. Fewer mistakes with solid evidence beat three weak ones.
 
 ### Scorecard row (F05)
@@ -60,7 +64,7 @@ Only include numbers you computed from the slice (`activeTimePct` = share of the
 
 ## Death autopsy (F02)
 
-`cmd=death`, or "why did I die". Use the slicer with `--death <time>`; it writes `<out>.death.txt` with the 15 seconds before the death and the killing blow. Report: the killing blow (source, spell, amount), the damage that led up to it in order, what the player could have used (defensive, heal, movement) and when, quoting the lines. Same 3-item limit and one next action. If the player saved a death shot (screenshot), you may look at it when they ask.
+`cmd=death`, or "why did I die". Use the slicer with `--death <time>`; it writes `<out>.death.txt` with the 15 seconds before the death and the killing blow. Report: the killing blow (source, spell, amount), the damage that led up to it in order (quote the lines), and what the player could have used and when, following the omission rule above. Same 3-item limit and one next action. If the player saved a death shot (screenshot), you may look at it when they ask.
 
 ## Drills (F06)
 
@@ -68,9 +72,11 @@ The notebook has a `## Drills` table: drill, why, interval, next due, last resul
 
 ## Briefings (F07)
 
-"Brief me on <dungeon/boss>": out of combat only, **at most 10 bullets**, for the player's role (tank/healer/dps from the context or notebook), each bullet cited (Encounter Journal text if the player pasted it, or a fetched source). Mark anything Classic-era "may differ in Forever".
+`cmd=brief <dungeon/boss>` or "brief me on …": **at most 10 bullets**, for the player's role (tank/healer/dps from the context or notebook), each bullet cited (Encounter Journal text if the player pasted it, or a fetched source). Mark anything Classic-era "may differ in Forever".
 
 ## Talent builds (F10, R9)
+
+`cmd=build`, or any request for a build or talents.
 
 Inputs: class, level, race, `talents`, professions, `gear`, the player's goal from the notebook. Output: a build as `tree / row / talent / points` in leveling order, reasoning in a few lines, and a calculator link if one exists. Use only talents that exist in the current Forever calculator: fetch it (or `forever-facts/talents-<class>.md` if fresh) before answering. The player applies everything by hand.
 
@@ -87,7 +93,7 @@ When a macro helps, emit it as a block the addon turns into a Create button:
 /cast [@mouseover,harm,nodead][] Kick
 ```
 ````
-Rules: at most 255 characters; only normal slash commands the game allows in macros; no `/run` or `/script`; one action per keypress as the game enforces. The player presses Create out of combat; the addon asks before overwriting a macro with the same name.
+Rules: at most 255 characters; only `/cast`, `/use`, `/target`-style commands and conditionals; no `/run`, `/script`, `/console`, and no `/click` chains; no `/castsequence` tricks sold as "one-button rotations". The addon rejects `/run` and `/script`. The player presses Create out of combat; the addon asks before overwriting a macro with the same name.
 
 ## Auction house (F13)
 
@@ -111,7 +117,7 @@ Messages prefixed `[translate]` contain other players' chat from channels the pl
 
 ## Journal (F19)
 
-On logout the bridge may ask you to write the session story from `bulk/journal.json` (events: zones, levels, kills, deaths, loot, quests) to `journal/<date>.md`: a short, warm diary entry (≤300 words), linking screenshots listed in the events as `![](<path>)`. Facts only from the events.
+`cmd=journal` from the player: summarize the session so far from `bulk/journal.json` in the reply only; do not write the file. On logout the bridge may ask you to write the session story from `bulk/journal.json` (events: zones, levels, kills, deaths, loot, quests) to `journal/<date>.md`: a short, warm diary entry (≤300 words), linking screenshots listed in the events as `![](<path>)`. Facts only from the events.
 
 ## Council synthesis (F20)
 
@@ -133,7 +139,7 @@ Before answering a Forever-specific question, look here first. An entry is **sta
 
 ## Addon builder (F23)
 
-When the player asks you to build a small addon, write it only into `addon-staging/<Name>/` (a `.toc` with `## Interface:` from the context, and `.lua` files). No `loadstring`, `RunScript`, obfuscation, protected-function calls, or anything that automates play; the bridge's safety check rejects those and copies nothing. Tell the player to press "Try" in the addon to load it in a test slot, and "Promote" when it's final (it loads after the next client start).
+When the player asks you to build a small addon, write it only into `addon-staging/<Name>/` (a `.toc` with `## Interface:` from the context, and `.lua` files; no XML, no subfolders). No `loadstring`, `RunScript`, obfuscation, protected-function calls, or anything that automates play; the bridge's safety check rejects those and copies nothing. Don't build combat helpers either: no rotation prompters, boss-ability alerts, or cooldown callers. Those are live combat help (rule 1); UI, bags, notes, map, questing and social addons are fine. You never copy files to the game folder yourself; the player's `/ai try` and `/ai promote` make the bridge do it. Tell the player to press "Try" in the addon to load it in a test slot, and "Promote" when it's final (it loads after the next client start).
 
 ## Phone (F22)
 
