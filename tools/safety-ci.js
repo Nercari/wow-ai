@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const luaparse = require("luaparse");
 
-const EXTENSIONS = new Set([".js", ".ps1", ".py", ".lua", ".vbs", ".cmd"]);
+const EXTENSIONS = new Set([".js", ".ps1", ".py", ".lua", ".toc", ".vbs", ".cmd"]);
 const forbiddenParts = [
   ["Send", "Input"].join(""),
   ["keybd", "_event"].join(""),
@@ -47,7 +47,35 @@ const protectedNames = [
   "SendChatMessage",
   "RunMacroText",
   "SecureCmdOptionParse",
+  // Economy, trade and targeting actions: an addon never performs these for the player.
+  "PlaceAuctionBid",
+  "PostAuction",
+  "StartAuction",
+  "PostItem",
+  "PostCommodity",
+  "PlaceBid",
+  "ConfirmCommoditiesPurchase",
+  "BuyMerchantItem",
+  "AcceptTrade",
+  "AssistUnit",
+  "FocusUnit",
+  "ClearTarget",
+  "TargetNearestEnemy",
+  "TargetLastTarget",
+  "PetAttack",
+  "CastPetAction",
+  "UseInventoryItem",
+  "UseContainerItem",
+  "UseItemByName",
+  "SpellTargetUnit",
+  "CameraOrSelectOrMoveStart",
+  "AcceptBattlefieldPort",
+  "JoinBattlefield",
 ];
+// UI Add-On Development Policy rules 4 and 5: no advertising, no donation requests.
+const SOLICIT = /\b(?:donat(?:e|es|ion|ions)|patreon|paypal|ko-?fi|buymeacoffee|buy me a coffee|venmo|cash ?app|subscribestar)\b/i;
+// Blizzard tables an addon may add its own entries to by convention.
+const BLIZZARD_REGISTRIES = new Set(["SlashCmdList", "StaticPopupDialogs"]);
 const PROTECTED = new RegExp(`\\b(?:${protectedNames.join("|")})\\s*\\(`);
 const RESTRICTED = new Set([
   "_G",
@@ -117,6 +145,11 @@ function scanLines(file, source, mode, findings, root, allow) {
   const ext = path.extname(file).toLowerCase();
   const rel = path.relative(root, file).replace(/\\/g, "/");
   const lines = source.split(/\r?\n/);
+
+  if (ext === ".lua") {
+    const addonName = mode === "untrusted" ? path.basename(path.dirname(file)) : "WoWAI";
+    checkBlizzardOverrides(file, source, addonName, findings, root);
+  }
 
   if (ext === ".lua") {
     try {
@@ -213,6 +246,9 @@ function scanLines(file, source, mode, findings, root, allow) {
     if (ext === ".js" && /\b(?:eval\s*\(|new\s+Function\s*\()/.test(line)) {
       findings.push(finding(file, lineNumber, "OBFUSCATION", line, root));
     }
+    if ((ext === ".lua" || ext === ".toc") && SOLICIT.test(line)) {
+      findings.push(finding(file, lineNumber, "POLICY-SOLICIT", line, root));
+    }
     const networkExt = [".js", ".ps1", ".py", ".lua", ".vbs", ".cmd"].includes(
       ext,
     );
@@ -227,6 +263,70 @@ function scanLines(file, source, mode, findings, root, allow) {
       findings.push(finding(file, lineNumber, "NETWORK", line, root));
     }
   });
+}
+
+// Replacing a Blizzard function or a method on a Blizzard frame taints every
+// secure path that runs through it; the game then blocks protected actions
+// (typed /cast, /run, settings) and blames this addon. Hooks
+// (hooksecurefunc, HookScript) are the allowed way to react to Blizzard code.
+function checkBlizzardOverrides(file, source, addonName, findings, root) {
+  let ast;
+  try {
+    ast = luaparse.parse(source, { luaVersion: "5.1", scope: true, locations: true });
+  } catch {
+    return; // LUA-SYNTAX is already reported.
+  }
+  const owned = (name) => {
+    const lower = name.toLowerCase();
+    return lower.startsWith("wowai") || lower.startsWith(addonName.toLowerCase()) ||
+      name.startsWith("SLASH_") || name.startsWith("BINDING_");
+  };
+  const fromGlobalLookup = new Set();
+  const isGlobalLookup = (value) => value?.type === "IndexExpression" &&
+    value.base.type === "Identifier" && value.base.name === "_G" && !value.base.isLocal;
+  const rootOf = (target) => {
+    let base = target;
+    while (base.type === "MemberExpression" || base.type === "IndexExpression") base = base.base;
+    return base;
+  };
+  const report = (node, text) =>
+    findings.push(finding(file, node.loc?.start.line || 1, "LUA-TAINT", text, root));
+  const checkTarget = (target) => {
+    if (target.type === "Identifier") {
+      if (!target.isLocal && !owned(target.name)) {
+        report(target, `replaces the Blizzard function ${target.name}; use hooksecurefunc instead`);
+      }
+      return;
+    }
+    const base = rootOf(target);
+    if (base.type !== "Identifier") return;
+    if (fromGlobalLookup.has(base.name)) {
+      report(target, `replaces a method on the Blizzard object ${base.name}; use hooksecurefunc instead`);
+    } else if (!base.isLocal && !owned(base.name) && !BLIZZARD_REGISTRIES.has(base.name)) {
+      report(target, `replaces a member of the Blizzard global ${base.name}; use hooksecurefunc instead`);
+    }
+  };
+  const visit = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (node.type === "LocalStatement") {
+      node.variables.forEach((variable, index) => {
+        if (isGlobalLookup(node.init[index])) fromGlobalLookup.add(variable.name);
+      });
+    }
+    if (node.type === "AssignmentStatement") {
+      node.variables.forEach((variable, index) => {
+        if (node.init[index]?.type === "FunctionDeclaration") checkTarget(variable);
+      });
+    }
+    if (node.type === "FunctionDeclaration" && node.identifier && !node.isLocal) {
+      checkTarget(node.identifier);
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key !== "loc" && key !== "range") visit(value);
+    }
+  };
+  visit(ast.body);
 }
 
 function loadLuaAllowlist(root) {

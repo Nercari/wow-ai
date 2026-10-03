@@ -4,6 +4,18 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Changed
+
+- **Blizzard policy compliance is a permanent rule** (`AGENTS.md`, `docs/COMPLIANCE.md`). Safety CI enforces more of it: replacing a Blizzard function or a method on a Blizzard frame fails as `LUA-TAINT`, donation or advertising text in addon files fails as `POLICY-SOLICIT` (UI add-on policy rules 4 and 5), and auction, trade, targeting and item-use calls join the protected-automation list.
+
+### Removed
+
+- `/r` no longer replies to the agent. It worked by replacing three methods on every game chat box, which tainted the box: a `/run` or `/cast` typed there afterwards was blocked with "WoWAI has been blocked from an action only available to the Blizzard UI". Use the `[reply]` link under a reply, or `/ai <text>`.
+
+### Fixed
+
+- A `/wow-ai reload` asked for during combat no longer calls `ReloadUI()` when combat ends (the game blocks it outside a keypress or click and blamed the addon); it reloads on your first keypress after combat.
+
 ### Added
 
 - Linux support: the game under Wine on an X11 session. `bridge/capture_x11.py` (python3 + libX11 through ctypes, no packages) does what `capture.ps1` does, finding the game window by its Wine WM_CLASS (`wowb.exe`) and tolerating a few pixels of misalignment. `npm run probe` saves what the capture sees to `bridge/probe.png`. New `capture` keys: `python`, `windowName`, `keepComposited`. `setup.js` looks for the client inside Wine prefixes. See [docs/INSTALL-LINUX.md](docs/INSTALL-LINUX.md).

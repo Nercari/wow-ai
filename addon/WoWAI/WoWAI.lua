@@ -280,7 +280,7 @@ local function SafeReload()
 	if InCombatLockdown() then
 		WoWAI.reloadAfterCombat = true
 		if ui.status then
-			ui.status:SetText("In combat - will reload as soon as it ends")
+			ui.status:SetText("In combat - will reload on your first keypress after it ends")
 		end
 		return
 	end
@@ -294,29 +294,41 @@ local keyCatcher = CreateFrame("Frame", "WoWAIKeyCatcher", UIParent)
 keyCatcher:Hide()
 keyCatcher:EnableKeyboard(true)
 keyCatcher:SetScript("OnKeyDown", function(self, key)
-	if db and AnyPending() and db.settings.autoRefresh
-		and GetTime() >= (WoWAI.nextAutoRefresh or 0)
-		and not InCombatLockdown() then
+	if InCombatLockdown() then return end
+	if WoWAI.reloadAfterCombat or (db and AnyPending() and db.settings.autoRefresh
+		and GetTime() >= (WoWAI.nextAutoRefresh or 0)) then
+		WoWAI.reloadAfterCombat = nil
 		self:Hide()
 		ReloadUI()
 	end
 end)
 
+-- Propagation can't be changed in combat. Never show the catcher without it,
+-- or it would eat every keypress. Returns whether the catcher is now listening.
+local function ShowKeyCatcher()
+	if not keyCatcher.propagates then
+		if InCombatLockdown() or not keyCatcher.SetPropagateKeyboardInput then return false end
+		keyCatcher:SetPropagateKeyboardInput(true)
+		keyCatcher.propagates = true
+	end
+	keyCatcher:Show()
+	return true
+end
+
 -- Arm the keypress reload. In pixel mode this is only used once the slot pool
 -- is exhausted (a reload frees every slot) or the slots are not installed.
 function WoWAI.ArmAutoRefresh()
 	keyCatcher:Hide()
+	-- A reload the player asked for during combat waits for their next keypress.
+	if WoWAI.reloadAfterCombat then
+		if not InCombatLockdown() then ShowKeyCatcher() end
+		return
+	end
 	if not AnyPending() or not db.settings.autoRefresh then return end
 	if db.settings.mode == "pixel" and not (run.slotsExhausted or run.slotsMissing or run.pixelFailed) then return end
-	-- Propagation can't be changed in combat. Never show the catcher without it,
-	-- or it would eat every keypress. PLAYER_REGEN_ENABLED re-arms after combat.
-	if not keyCatcher.propagates then
-		if InCombatLockdown() or not keyCatcher.SetPropagateKeyboardInput then return end
-		keyCatcher:SetPropagateKeyboardInput(true)
-		keyCatcher.propagates = true
-	end
+	-- PLAYER_REGEN_ENABLED re-arms after combat.
 	WoWAI.nextAutoRefresh = GetTime() + db.settings.interval
-	keyCatcher:Show()
+	ShowKeyCatcher()
 end
 
 ---------------------------------------------------------------------------
@@ -950,7 +962,7 @@ Finish = function(chat, role, text, denied, agent, summary)
 	if not visible then
 		chat.unread = (chat.unread or 0) + 1
 	end
-	if not AnyPending() then
+	if not AnyPending() and not WoWAI.reloadAfterCombat then
 		keyCatcher:Hide()
 	end
 	if visible and ui.input and chat.draft and chat.draft ~= "" then
@@ -2066,104 +2078,10 @@ end
 function WoWAI.Notify(chat, text, agent, summary)
 	pcall(PlaySound, 3081)
 	WoWAI.UpdateMini()
-	-- Until a real whisper arrives, /r replies to this chat.
-	run.lastMessenger = "agent"
-	run.lastReplyChat = chat.id
 	EchoToChat(chat, text, agent, summary)
 	if ui.frame and ui.frame:IsShown() and db.activeChat == chat.id then return end
 	if UIErrorsFrame then
 		UIErrorsFrame:AddMessage(ReplyAgentName(chat, agent) .. " replied in " .. Display(chat.name), 0.5, 0.8, 1, 1)
-	end
-end
-
--- /r goes to the agent when it was the last one to message you, exactly like
--- whisper reply, and the box shows a "To Codex [chat]:" header while you type.
---
--- The chat type underneath is left alone (a custom type would leak into chat
--- settings); instead the box remembers an agent target, the header is repainted
--- over the game's own, and the send entry points are intercepted. Any other chat
--- type, Tab, Esc or a cleared box drops the target again.
-local AGENT_R, AGENT_G, AGENT_B = 0.49, 0.78, 1.0
-
-local function PaintAgentHeader(eb, chat)
-	local header = _G[eb:GetName() .. "Header"]
-	local suffix = _G[eb:GetName() .. "HeaderSuffix"]
-	if not header then return end
-	eb.agentPainting = true
-	eb:UpdateHeader() -- lay out normally first, then repaint
-	eb.agentPainting = nil
-	header:SetWidth(0)
-	header:SetText("To " .. ChatAgentName(chat) .. " [" .. Display(chat.name) .. "]: ")
-	header:SetTextColor(AGENT_R, AGENT_G, AGENT_B)
-	if suffix then suffix:Hide() end
-	eb:SetTextInsets(15 + header:GetWidth(), 13, 0, 0)
-	eb:SetTextColor(AGENT_R, AGENT_G, AGENT_B)
-end
-
-local function SendBoxToAgent(eb)
-	local chat = FindChat(eb.agentTarget)
-	local text = Trim(eb:GetText() or "")
-	eb.agentTarget = nil
-	eb:ClearChat()
-	if chat and db.activeChat ~= chat.id then WoWAI.SwitchChat(chat.id) end
-	if text ~= "" then
-		WoWAI.Send(text)
-	else
-		WoWAI.Toggle(true)
-		if ui.input then ui.input:SetFocus() end
-	end
-end
-
-local function HookReplyCommand()
-	for i = 1, (NUM_CHAT_WINDOWS or 10) do
-		local eb = _G["ChatFrame" .. i .. "EditBox"]
-		if eb and eb.ProcessChatType and not eb.agentReplyHooked then
-			eb.agentReplyHooked = true
-
-			local origProcess = eb.ProcessChatType
-			eb.ProcessChatType = function(self, msg, index, send, ...)
-				if index ~= "REPLY" then
-					self.agentTarget = nil
-					return origProcess(self, msg, index, send, ...)
-				end
-				if not (db and run.lastMessenger == "agent") then
-					return origProcess(self, msg, index, send, ...)
-				end
-				local chat = FindChat(run.lastReplyChat) or ActiveChat()
-				if send == 1 then
-					self:SetText(msg or "")
-					self.agentTarget = chat and chat.id
-					SendBoxToAgent(self)
-					return true
-				end
-				self.agentTarget = chat and chat.id
-				self:SetText(msg or "")
-				if chat then PaintAgentHeader(self, chat) end
-				return true
-			end
-
-			-- Enter arrives here; nothing below us ever sees an agent-targeted box.
-			for _, name in ipairs({ "SendMessage", "SendText" }) do
-				local orig = eb[name]
-				if orig then
-					eb[name] = function(self, ...)
-						if self.agentTarget then
-							SendBoxToAgent(self)
-							return
-						end
-						return orig(self, ...)
-					end
-				end
-			end
-
-			-- Anything that repaints the header normally (Tab, /s, sticky reset) ends agent mode.
-			hooksecurefunc(eb, "UpdateHeader", function(self)
-				if not self.agentPainting then self.agentTarget = nil end
-			end)
-			hooksecurefunc(eb, "ClearChat", function(self)
-				self.agentTarget = nil
-			end)
-		end
 	end
 end
 
@@ -2981,7 +2899,7 @@ SlashCmdList["WOWAI"] = function(msg)
 			c.pendingId = nil
 			c.progress = nil
 			RefreshStrip()
-			if not AnyPending() then keyCatcher:Hide() end
+			if not AnyPending() and not WoWAI.reloadAfterCombat then keyCatcher:Hide() end
 		end
 		WoWAI.Render()
 	elseif cmd == "clear" then
@@ -3004,16 +2922,11 @@ local ev = CreateFrame("Frame")
 ev:RegisterEvent("ADDON_LOADED")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:RegisterEvent("PLAYER_REGEN_ENABLED")
-ev:RegisterEvent("CHAT_MSG_WHISPER")
-ev:RegisterEvent("CHAT_MSG_BN_WHISPER")
 ev:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" then
 		if arg1 == ADDON_NAME then
 			InitDB()
 		end
-	elseif event == "CHAT_MSG_WHISPER" or event == "CHAT_MSG_BN_WHISPER" then
-		-- A real person whispered: /r belongs to them again.
-		run.lastMessenger = "player"
 	elseif event == "PLAYER_LOGIN" then
 		if not db then InitDB() end
 		BuildUI()
@@ -3049,13 +2962,13 @@ ev:SetScript("OnEvent", function(self, event, arg1)
 		WoWAI.ArmAutoRefresh()
 		WoWAI.UpdateDot()
 		if db.settings.longchat then ApplyLongChat() end
-		HookReplyCommand()
 		C_Timer.NewTicker(TICK_SECONDS, Tick)
 		C_Timer.After(3, WoWAI.SayHello)
 	elseif event == "PLAYER_REGEN_ENABLED" then
 		if WoWAI.reloadAfterCombat then
-			WoWAI.reloadAfterCombat = nil
-			ReloadUI()
+			-- ReloadUI() is blocked outside a keypress or click, and this event is
+			-- neither: reload on the player's next keypress instead.
+			ShowKeyCatcher()
 		elseif db then
 			WoWAI.ArmAutoRefresh()
 		end
