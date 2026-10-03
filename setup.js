@@ -151,7 +151,7 @@ function writeConfig(client, account) {
   cfg.addonDir = path.join(client, 'Interface', 'AddOns');
   cfg.inboxFile = path.join(cfg.addonDir, 'WoWAI', 'Inbox.lua');
   cfg.savedVariablesFile = path.join(client, 'WTF', 'Account', account, 'SavedVariables', 'WoWAI.lua');
-  cfg.defaultCwd = args.project ? path.resolve(args.project) : process.cwd();
+  cfg.defaultCwd = args.project ? path.resolve(args.project) : ''; // empty: the bridge uses the mentor workspace
   const exe = fs.readdirSync(client).find(f => /^Wow.*\.exe$/i.test(f));
   if (exe) cfg.capture.processName = exe.replace(/\.exe$/i, '');
   fs.writeFileSync(CONFIG, JSON.stringify(cfg, null, 2) + '\n');
@@ -179,7 +179,7 @@ try {
   const { dest, copied } = copyAddon(client);
   console.log(`addon    : ${copied} file(s) -> ${dest}`);
   const cfg = writeConfig(client, account);
-  console.log(`project  : ${cfg.defaultCwd}  (change with /wow-ai cd in game, or defaultCwd in config.json)`);
+  console.log(`project  : ${cfg.defaultCwd || 'the mentor workspace'}  (change with /wow-ai cd in game, or defaultCwd in config.json)`);
   console.log(`agent    : ${cfg.agent} by default (change with /wow-ai agent in game, or "agent" in config.json)`);
   console.log(agentReport(cfg));
   console.log('slots    : building the reply-slot pool and signal files...');

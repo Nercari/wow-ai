@@ -105,7 +105,7 @@ cd C:\path\to\realms
 wow-ai
 ```
 
-Every chat that hasn't picked its own folder now works in `realms`, and the panel's cwd line shows it. `wow-ai --project <dir>` names the folder explicitly; `npm start` inside this repo falls back to `defaultCwd` in the config. Only one bridge can run at a time (two would fight over the screen and the slot files), so this sets the default folder rather than giving you one bridge per project.
+Every chat that hasn't picked its own folder now works in `realms`, and the panel's cwd line shows it. `wow-ai --project <dir>` names the folder explicitly; `npm start` inside this repo falls back to `defaultCwd` in the config, and to the mentor workspace (`wow-mentor`, next to this repo) when that is empty. A broad start or configured folder (Documents, Desktop, Downloads, your home folder, a drive root) is skipped in favour of the mentor workspace, because the agent would read unrelated files there. Only one bridge can run at a time (two would fight over the screen and the slot files), so this sets the default folder rather than giving you one bridge per project.
 
 ## Use
 
@@ -180,7 +180,7 @@ The keys you are most likely to touch. Every key, flag and environment variable 
 
 | Key | Meaning |
 |---|---|
-| `defaultCwd` | folder for chats that haven't been given one with `/wow-ai cd` |
+| `defaultCwd` | folder for chats that haven't been given one with `/wow-ai cd`; empty = the mentor workspace |
 | `agent` | the agent for chats that haven't picked one with `/wow-ai agent` (`claude`, `codex`, `grok`, `agy` or `hermes`) |
 | `agents.<id>.permissionMode`, `.allowedTools`, `.deniedTools`, `.model` | that agent's permissions, allowlist, denylist and model; `.path` where its executable is if the bridge can't find it, `.extraArgs` anything else to pass it |
 | `agents.codex.networkAccess` | let Codex's sandbox reach the network (default `false`) |

@@ -95,6 +95,31 @@ function resolveCwd(raw, base) {
   return path.resolve(base, p);
 }
 
+// A folder so broad that an agent working there reads unrelated files: a drive
+// root, the home folder or anything above it, or its Documents, Desktop or Downloads.
+function isBroadFolder(dir, home = os.homedir()) {
+  const norm = p => process.platform === 'win32' ? path.resolve(String(p)).toLowerCase() : path.resolve(String(p));
+  const d = norm(dir), h = norm(home);
+  if (path.parse(d).root === d) return true;
+  const rel = path.relative(d, h);
+  if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) return true;
+  // Windows often keeps Documents and Desktop inside the OneDrive folder.
+  const parent = path.dirname(d), oneDrive = p => path.dirname(p) === h && /^onedrive/i.test(path.basename(p));
+  if (oneDrive(d)) return true;
+  return (parent === h || oneDrive(parent)) && /^(documents|desktop|downloads)$/i.test(path.basename(d));
+}
+
+// The folder for chats that have not picked one. A folder named on purpose
+// (--project, WOW_AI_PROJECT) is taken as is; the start folder and config.json
+// are skipped when broad, and the mentor workspace is the fallback.
+function pickDefaultCwd({ project, env, started, config, mentorDir, home }) {
+  if (project) return { dir: path.resolve(project), source: '--project' };
+  if (env) return { dir: path.resolve(env), source: 'WOW_AI_PROJECT' };
+  if (started && !isBroadFolder(started, home)) return { dir: path.resolve(started), source: 'started here' };
+  if (config && !isBroadFolder(config, home)) return { dir: path.resolve(config), source: 'config.json' };
+  return { dir: path.resolve(mentorDir), source: 'mentor workspace' };
+}
+
 function sameFolder(a, b) {
   const left = String(a || '');
   const right = String(b || '');
@@ -480,7 +505,7 @@ const SILENT_WAV = (() => {
 module.exports = {
   fromHex, pad3, slotNumber, chatKey, sessKey,
   alreadyHandled, markHandled, pruneStale, MONTH_MS,
-  resolveCwd, sameFolder, baseName,
+  resolveCwd, isBroadFolder, pickDefaultCwd, sameFolder, baseName,
   parseFlags, jobsFromStrip, parseOutbox, systemPrompt, splitSummary,
   ruleFor, describeToolUse,
   luaStr, luaTable, SILENT_WAV,
