@@ -30,6 +30,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- **Starter questions.** An empty chat shows four question buttons fitted to your class and level. Clicking one types it into the box; you press Enter to send it.
 - **Level-up nudge.** After you level up and the fight is over, one chat line offers "what changes at this level?". Clicking it opens the window with the question typed in; you press Enter to send it. Nothing is offered in combat or while the AI is off.
 - Warlock rubric (`mentor/rubrics/warlock.md`), after WoWAnalyzer's per-spec checklists: DoT uptime gaps, Life Tap into danger, idle time with wanding, and stone prep, each with the log evidence to quote and a citation into `mentor/knowledge/classes-classic.md`. The facts are Classic-era and may differ in Forever.
 - `/ai practice` (`cmd=practice`), after Localog's dummy practice: the mentor compares your last two target-dummy sessions, active time, damage and damage per second, from the scorecard rows tagged `"kind":"dummy"`, using the new `tools/practice-compare.js` so the numbers are computed, not estimated. Like every command it is blocked in combat, in encounters and in challenge runs. The scorecard rows accept `kind`, `damage` and `durationS`, and `check-citations.js` validates them.

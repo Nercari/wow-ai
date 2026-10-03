@@ -426,6 +426,24 @@ test('the window opens at the top centre on a fresh install and where it was lef
   assert.equal(vm.num('WoWAIFrame.y'), 12);
 });
 
+test('an empty chat offers four starter questions fitted to class and level; a click types one, sends nothing', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('STUB.level = 4');
+  const q = vm.evaluate('table.concat(WoWAI.StarterQuestions(), "|")').split('|');
+  assert.equal(q.length, 4);
+  assert.ok(q[0].includes('level 4 Hunter'));
+  assert.ok(q[2].includes("I'm new to the game"), 'low level: setup question');
+  vm.run('STUB.level = 30');
+  assert.ok(vm.evaluate('WoWAI.StarterQuestions()[3]').includes('gear fine for level 30'));
+
+  connect(vm);
+  vm.run('WoWAI.Toggle(true); WoWAI.Render()');
+  const first = vm.evaluate('WoWAI.StarterQuestions()[1]');
+  assert.ok(vm.evaluate('table.concat(STUB.texts, "|")').includes(first), 'the questions are drawn as buttons');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null, 'nothing is sent by itself');
+});
+
 test('each slash command in a reply gets a copy button that opens the copy box with only that line', () => {
   const vm = newVM();
   login(vm);
