@@ -80,7 +80,9 @@ function update(root) {
     moved = git('merge', '--ff-only', '--quiet', release);
   } else {
     // switch -C would move a forever checked out in another worktree under it.
-    const elsewhere = git('worktree', 'list', '--porcelain').out.split('\n').includes(`branch refs/heads/${RELEASE_BRANCH}`);
+    // Entries whose folder was deleted ("prunable") don't count.
+    const elsewhere = git('worktree', 'list', '--porcelain').out.split('\n\n')
+      .some(w => w.split('\n').includes(`branch refs/heads/${RELEASE_BRANCH}`) && !/^prunable/m.test(w));
     if (elsewhere) return keep(`${RELEASE_BRANCH} is open in another folder (a git worktree); not updated`);
     // One checkout straight to the release: the local release branch (an
     // ancestor, checked above) is moved up to it in the same step, so a
@@ -94,8 +96,17 @@ function update(root) {
   // Judge by where HEAD ended up, not the exit code: a failing post-checkout
   // hook makes git exit non-zero after the checkout already happened.
   const after = git('rev-parse', 'HEAD').out;
-  if (!moved.ok && after === head.out) return keep(`could not update (${why(moved)}); using the version you have`);
-  const files = after === head.out ? [] : lines(git('diff', '--name-only', head.out, after));
+  const onRelease = git('branch', '--show-current').out === RELEASE_BRANCH;
+  if (!moved.ok && after === head.out && (branch === RELEASE_BRANCH || !onRelease)) {
+    return keep(`could not update (${why(moved)}); using the version you have`);
+  }
+  // A file git could not replace (in use, read-only) stays old and shows as
+  // a local edit; list only the files that really changed, and say which didn't.
+  const stuck = lines(git('diff', '--name-only', 'HEAD'));
+  const files = after === head.out ? [] : lines(git('diff', '--name-only', head.out, after)).filter(f => !stuck.includes(f));
+  if (stuck.length) {
+    return { changed: files.length > 0, files, note: `updated, but ${stuck.length} file${stuck.length === 1 ? '' : 's'} could not be replaced (${stuck.slice(0, 3).join(', ')}): close anything using them and run this again${switched}` };
+  }
   if (!files.length) return { changed: false, files, note: `already up to date${switched}` };
   return { changed: true, files, note: `updated to the latest release (${files.length} file${files.length === 1 ? '' : 's'} changed)${switched}` };
 }

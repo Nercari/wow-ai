@@ -227,6 +227,41 @@ test("update: a failing post-checkout hook does not hide a checkout that happene
   assert.equal(git(player, "rev-parse", "--abbrev-ref", "forever@{upstream}"), "origin/forever");
 });
 
+test("update: a deleted worktree on forever does not block the update", (t) => {
+  const { dev, player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  const gone = path.join(path.dirname(player), "gone");
+  git(player, "worktree", "add", "-q", gone, "forever");
+  fs.rmSync(gone, { recursive: true, force: true });
+  commit(dev, "bridge/bridge.js", "x\n");
+  const r = update(player);
+  assert.equal(r.changed, true);
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+});
+
+test("update: a hook failing after a switch to the same commit is not called a network failure", (t) => {
+  const { player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  fs.writeFileSync(path.join(player, ".git", "hooks", "post-checkout"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const r = update(player);
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+  assert.doesNotMatch(r.note, /could not update/);
+  assert.match(r.note, /already up to date \(switched from "agent-work"/);
+});
+
+test("update: a file left old by the checkout is named and not listed as updated", (t) => {
+  // Stands in for a file git could not replace (in use, read-only): after the
+  // checkout it still differs from the release.
+  const { dev, player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  commit(dev, "bridge/bridge.js", "new\n");
+  commit(dev, "addon/a.lua", "new\n");
+  fs.writeFileSync(path.join(player, ".git", "hooks", "post-checkout"), "#!/bin/sh\necho old > bridge/bridge.js\n", { mode: 0o755 });
+  const r = update(player);
+  assert.deepEqual([r.changed, r.files], [true, ["addon/a.lua"]]);
+  assert.match(r.note, /1 file could not be replaced \(bridge\/bridge\.js\)/);
+});
+
 test("update: no local forever and two remotes that have one: forever is made from origin", (t) => {
   const { dev, player } = repos(t);
   git(player, "remote", "add", "upstream", git(player, "remote", "get-url", "origin"));
