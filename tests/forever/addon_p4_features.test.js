@@ -262,6 +262,11 @@ test('policy banner shows on [policy] reply and prints once', () => {
   assert.equal(vm.evaluate('WoWAIPolicyBanner.msgText.text'), policyMsg);
   assert.ok(vm.evaluate('table.concat(STUB.prints, "\\n")').includes(policyMsg));
 
+  // It sits below the mini bar (which spans y -40 to -70), stays on screen and closes with Esc.
+  assert.ok(vm.num('WoWAIPolicyBanner.y') <= -70, 'banner anchored clear of the mini bar');
+  assert.equal(vm.evaluate('WoWAIPolicyBanner.clamped'), 'true');
+  assert.equal(vm.evaluate('(function() for _, n in ipairs(UISpecialFrames) do if n == "WoWAIPolicyBanner" then return true end end return false end)()'), 'true');
+
   // Dismiss button hides banner
   vm.run('WoWAIPolicyBanner.dismiss.scripts.OnClick()');
   assert.equal(vm.evaluate('WoWAIPolicyBanner.shown'), 'false');
