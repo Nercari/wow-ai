@@ -73,6 +73,8 @@ bridge\start-window.cmd # double-click version: opens its own window
 
 It restarts itself if it ever crashes. Ctrl+C (or closing the window) stops it. The banner lists every agent with where its executable was found, or what to install.
 
+**One double-click instead (Windows).** `WoW AI.cmd` in the repo folder does all of the above every time: it updates the checkout (a fast-forward `git pull`, skipped when the folder has local edits or there's no network), runs `setup.js`, starts the bridge in a minimized window (or restarts it when the update changed it), and says whether the game needs a `/reload`, a relaunch, or nothing. If the game isn't running it opens the Battle.net app, where you press Play; it never starts or touches the game itself. The first run puts a **WoW AI** icon on your desktop that does the same.
+
 ### Linux (Wine)
 
 Details and capture troubleshooting: [docs/INSTALL-LINUX.md](docs/INSTALL-LINUX.md). The short version:

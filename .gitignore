@@ -3,6 +3,7 @@ bridge/config.json
 bridge/state.json
 bridge/transcripts.json
 bridge/bridge.log
+bridge/KILLED
 bridge/tmp/
 bridge/audit/
 *.tmp
@@ -19,3 +20,4 @@ bridge/mapjobs/
 bridge/ptt/
 __pycache__/
 policy/
+bridge/.shortcut-made
