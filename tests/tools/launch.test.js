@@ -149,6 +149,11 @@ test("the bridge window starts supervisor.js by full path, so stop-bridge.ps1 ca
   assert.match(launch, /path\.join\(bridgeDir, 'supervisor\.js'\)/);
 });
 
+test("stop-bridge.ps1 hands command lines to CommandLineToArgvW as Unicode", () => {
+  const s = fs.readFileSync(path.resolve(__dirname, "../../bridge/stop-bridge.ps1"), "utf8");
+  assert.match(s, /DllImport\("shell32\.dll"[^)]*CharSet = CharSet\.Unicode\)\]\s*public static extern IntPtr CommandLineToArgvW/);
+});
+
 test("the launcher never starts the game executable itself", () => {
   const launch = fs.readFileSync(path.resolve(__dirname, "../../tools/launch.js"), "utf8");
   // Only two things are started: the bridge window and the Battle.net app.

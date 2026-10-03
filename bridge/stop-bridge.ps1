@@ -15,7 +15,9 @@ if (-not ('CommandLineParser' -as [type])) {
 using System;
 using System.Runtime.InteropServices;
 public static class CommandLineParser {
-    [DllImport("shell32.dll", SetLastError = true)]
+    // Unicode: without it the command line is passed as ANSI bytes and never parses,
+    // so no process matched and the bridge was never stopped.
+    [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     public static extern IntPtr CommandLineToArgvW(string commandLine, out int argc);
     [DllImport("kernel32.dll")]
     public static extern IntPtr LocalFree(IntPtr memory);
