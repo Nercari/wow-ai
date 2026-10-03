@@ -2720,7 +2720,7 @@ SlashCmdList["WOWAI"] = function(msg)
 	local s = db.settings
 	local c = ActiveChat()
 	if cmd == "help" and rest:lower() == "forever" then
-		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, level, look <question>, council <question>, phone, off, on")
+		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, practice, level, look <question>, council <question>, phone, off, on")
 		WoWAI.Render()
 		return
 	end

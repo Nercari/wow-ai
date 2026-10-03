@@ -88,6 +88,14 @@ function checkScorecard(notebook, problems) {
         problems.push(`scorecard line ${lineNum}: ${numField} must be a finite number`);
       }
     }
+    for (const numField of ["damage", "durationS"]) {
+      if (row[numField] !== undefined && (typeof row[numField] !== "number" || !Number.isFinite(row[numField]) || row[numField] < 0)) {
+        problems.push(`scorecard line ${lineNum}: ${numField} must be a number of 0 or more`);
+      }
+    }
+    if (row.kind !== undefined && row.kind !== "dummy") {
+      problems.push(`scorecard line ${lineNum}: kind must be "dummy" when present`);
+    }
     if (row.activeTimePct !== undefined) {
       if (
         typeof row.activeTimePct !== "number" ||

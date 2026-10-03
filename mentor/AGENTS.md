@@ -25,7 +25,7 @@ The addon attaches a context block (character, level, zone, target, and so on) a
 | `death` | `deaths[]` (time, killer, spell), `lastFight`, `logging` |
 | `build`, `gear` | `talents`, compact `gear` (slot:itemID:enchant:gems) |
 | `quest` | `questDetail` (quest id and title) |
-| `brief`, `level`, `drill`, `journal`, `look` | see the sections below |
+| `brief`, `level`, `drill`, `practice`, `journal`, `look` | see the sections below |
 | `council`, `translate` | the bridge/addon also mark the text with `[council]` / `[translate]`; handle either marker |
 | `phone`, `try`, `promote`, `builder-reset`, `off`, `on` | handled by the bridge; you normally never see them. If you do, reply with one line saying the bridge handles it |
 | none | plain chat with the upstream context |
@@ -62,11 +62,16 @@ Append to the notebook's `## Scorecard` section, one JSON object per line inside
 ```json
 {"date":"2026-09-25","fight":"Hogger","role":"dps","deaths":0,"mistakes":2,"top":"late interrupt","activeTimePct":91,"notes":"first clean kill"}
 ```
+For a target-dummy session add `"kind":"dummy"`, `"damage"` (the sum of the damage amounts of the player's own damage events in the slice, pets excluded) and `"durationS"` (first to last player event in the slice). Omit a field you can't read from the slice.
 Only include numbers you computed from the slice (`activeTimePct` = share of the fight with a cast/swing in any 2.5 s window; omit a field you can't compute). After two or more rows, add one trend sentence to the reply ("Deaths down from 2 to 0 over the last 3 reviews").
 
 ## Death autopsy (F02)
 
 `cmd=death`, or "why did I die". Use the slicer with `--death <time>`; it writes `<out>.death.txt` with the 15 seconds before the death and the killing blow. Its `#` lines at the top are a recap computed from those lines: total damage and heals taken, the killing blow, and damage taken per source and spell with its share. Use the recap to rank what killed the player and to say it in plain words ("the Fireball casts did 96% of the damage"); still quote the log lines themselves as evidence, never the `#` lines. An `amount=?` or `unread=` means the tool could not read that amount: read the line yourself. Report: the killing blow (source, spell, amount), the damage that led up to it in order (quote the lines), and what the player could have used and when, following the omission rule above. Same 3-item limit and one next action. If the player saved a death shot (screenshot), you may look at it when they ask.
+
+## Dummy practice (`cmd=practice`)
+
+`cmd=practice`, or "compare my dummy sessions". Run `node <repo>/tools/practice-compare.js --notebook characters/<realm>-<name>.md`. It reads the notebook's `## Scorecard`, takes the last two rows with `"kind":"dummy"` and prints active time, damage and damage per second, before and after. Report those numbers as printed and say which two sessions (date and fight). Do not compute or estimate anything the tool leaves out: a field missing from either row reads "not in both rows". Exit 1 means fewer than two dummy rows: say so, and offer to review the next dummy session with `cmd=review` so a row gets written. Give at most one next thing to practice, from the notebook's drills. Practice sessions on a dummy are not a measure of how the player does in a real fight; say so once.
 
 ## Drills (F06)
 
