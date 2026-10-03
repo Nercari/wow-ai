@@ -1843,14 +1843,18 @@ end
 -- The slash commands in a reply, one per line (backticks and list marks dropped),
 -- so each can get its own copy button. Capped: a long list would bury the reply.
 local COPY_MAX = 4
-local NO_COPY = { run = true, script = true, console = true, dump = true }
+local NO_COPY = { run = true, script = true, runscript = true, console = true, dump = true }
 function WoWAI.CommandLines(text)
 	local out = {}
 	for line in (tostring(text or "") .. "\n"):gmatch("(.-)\r?\n") do
 		local cmd = line:match("^[%s%-%*>`]*(/%a[^`]*)")
 		local word = cmd and cmd:match("^/([%w_%-]+)")
 		-- Not a file path, and never a script line: those are not offered for pasting.
-		if word and not cmd:match("^/[%w_%-]+/") and not NO_COPY[word:lower()] then
+		local script = false
+		for w in (cmd or ""):gmatch("/(%a+)") do
+			if NO_COPY[w:lower()] then script = true end
+		end
+		if word and not cmd:match("^/[%w_%-]+/") and not script then
 			if #out < COPY_MAX then table.insert(out, Trim(cmd)) end
 		end
 	end

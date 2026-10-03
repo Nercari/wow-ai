@@ -432,6 +432,7 @@ test('each slash command in a reply gets a copy button that opens the copy box w
   const lines = t => vm.evaluate(`table.concat(WoWAI.CommandLines(${JSON.stringify(t)}), "|")`);
   assert.equal(lines('Try this:\n- `/wow-ai help`\n/who Stormwind\nplain text'), '/wow-ai help|/who Stormwind');
   assert.equal(lines('/usr/bin/node is a path\n/run print(1)\n/script x()\n/console foo 1\n/dump x'), '', 'no paths, no script lines');
+  assert.equal(lines('/runscript x()\n/RUN x\n/who and then /run x\n/who then /Script y'), '', 'a script anywhere on the line means no button');
   assert.equal(lines('/a\n/b\n/c\n/d\n/e'), '/a|/b|/c|/d', 'capped at four');
 
   connect(vm);
