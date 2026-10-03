@@ -53,7 +53,14 @@ if (require.main === module) {
     console.error("usage: node tools/practice-compare.js --notebook <characters/Realm-Name.md> [--json]");
     process.exit(2);
   }
-  const r = compare(fs.readFileSync(process.argv[i + 1], "utf8"));
+  let text;
+  try {
+    text = fs.readFileSync(process.argv[i + 1], "utf8");
+  } catch (e) {
+    console.error(`cannot read notebook: ${e.message}`);
+    process.exit(2);
+  }
+  const r = compare(text);
   console.log(process.argv.includes("--json") ? JSON.stringify(r) : format(r));
   process.exitCode = r.ok ? 0 : 1;
 }
