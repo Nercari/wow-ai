@@ -159,6 +159,8 @@ test('Claude stream: tool calls and text become progress, the result carries the
   assert.equal(ps.notes.length, 1);
   assert.ok(!ps.notes[0].includes('\n') && ps.notes[0].length < 220, ps.notes[0]);
   assert.ok(ps.notes[0].includes('PowerShell: Get-ChildItem C:\\Users |.'));
+  const crlf = A.claudeParser().feed({ type: 'result', result: 'x', permission_denials: [{ tool_name: 'PowerShell', tool_input: { command: 'dir\r\ncls' } }] });
+  assert.ok(crlf.notes[0].includes('PowerShell: dir. ') && !/[\r\n]/.test(crlf.notes[0]), crlf.notes[0]);
   const err = A.claudeParser().feed({ type: 'result', is_error: true, result: 'boom' });
   assert.deepEqual(err.done, { text: 'boom', error: true });
 });

@@ -25,7 +25,7 @@ function snippet(text) {
   return s.length > PROGRESS_CHARS ? s.slice(0, PROGRESS_CHARS) + '...' : s;
 }
 
-function firstLine(s) { return String(s || '').split('\n')[0].slice(0, 110); }
+function firstLine(s) { return String(s || '').split(/\r?\n/)[0].slice(0, 110); }
 
 // The command inside the shell wrapper an agent runs it with (Codex: `/bin/zsh -lc 'ls -la'`).
 function shellInner(cmd) {
