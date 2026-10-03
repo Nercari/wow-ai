@@ -198,3 +198,55 @@ test(
     assert.ok(elapsed < 5000, `${elapsed}ms`);
   },
 );
+test("death file starts with a recap of who hit the player, from the dry-run log", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "slice-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const out = path.join(dir, "out.log");
+  const r = spawnSync(
+    process.execPath,
+    [
+      TOOL,
+      "--logs",
+      path.resolve(__dirname, "../fixtures/dryrun/Logs"),
+      "--start",
+      "2026-09-25T20:00:20",
+      "--end",
+      "2026-09-25T20:00:43",
+      "--player",
+      "Brakka-Testrealm",
+      "--out",
+      out,
+      "--death",
+      "2026-09-25T20:00:42.600",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  const lines = (await fs.readFile(out + ".death.txt", "utf8")).split("\n");
+  assert.equal(lines[1], "# recap hits=5,damage=320,heals=0,first-hit=12.2s-before");
+  assert.equal(lines[2], '# killing-blow at=20:00:42.500,source="Defias Pillager",spell="Fireball",amount=80');
+  assert.equal(lines[3], '# taken source="Defias Pillager",spell="Fireball",hits=4,damage=308,share=96%');
+  assert.equal(lines[4], '# taken source="Defias Pillager",spell="Melee",hits=1,damage=12,share=4%');
+  assert.match(lines[5], /^9\/25\/2026 /);
+});
+test("recap reads amounts after the advanced block, environment and heals, and flags unreadable amounts", () => {
+  const { recap } = require(TOOL);
+  const base = (event, src, dst) => `${event},Creature-0-1,"${src}",0xa48,0x0,Player-1,"${dst}",0x511,0x0`;
+  const adv = Array.from({ length: 19 }, (_, i) => String(i + 1000)).join(",");
+  const lines = [
+    `1/2/2026 03:04:01.000  ${base("SPELL_DAMAGE", "Mob", "Hero-Realm")},133,"Fireball",0x4,${adv},40,0,4,0,0,0,nil,nil,nil`,
+    `1/2/2026 03:04:02.000  ${base("SPELL_HEAL", "Priest", "Hero-Realm")},2050,"Lesser Heal",0x2,${adv},25,0,0,nil`,
+    `1/2/2026 03:04:03.000  ${base("SWING_DAMAGE", "Hero-Realm", "Mob")},${adv},99,0,1,0,0,0,nil,nil,nil`,
+    `1/2/2026 03:04:04.000  ENVIRONMENTAL_DAMAGE,0000000000000000,nil,0x80000000,0x80000000,Player-1,"Hero-Realm",0x511,0x0,${adv},Falling,60,0,1,0,0,0,nil,nil,nil`,
+    `1/2/2026 03:04:05.000  ${base("SWING_DAMAGE", "Mob", "Hero-Realm")},${adv},oops`,
+  ];
+  const out = recap(lines, "Hero-Realm", true, Date.UTC(2026, 0, 2, 3, 4, 6) + new Date(2026, 0, 2).getTimezoneOffset() * 60000);
+  assert.equal(out[0], "# recap hits=3,damage=100,heals=25,first-hit=5.0s-before");
+  assert.equal(out[1], '# killing-blow at=03:04:05.000,source="Mob",spell="Melee",amount=?');
+  assert.deepEqual(out.slice(2), [
+    '# taken source="Environment",spell="Falling",hits=1,damage=60,share=60%',
+    '# taken source="Mob",spell="Fireball",hits=1,damage=40,share=40%',
+    '# taken source="Mob",spell="Melee",hits=1,damage=0,share=0%,unread=1',
+  ]);
+  assert.deepEqual(recap([], "Hero-Realm", false, NaN), ["# recap no damage to the player in the window"]);
+});

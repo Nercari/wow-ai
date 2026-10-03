@@ -148,6 +148,88 @@ const STRUCT =
   /(?:COMBAT_LOG_VERSION|ENCOUNTER_START|ENCOUNTER_END|UNIT_DIED|ZONE_CHANGE|CHALLENGE_MODE_)/;
 const DAMAGE = /_(?:DAMAGE|MISSED|ABSORBED)(?:,|$)/;
 const HEAL = /_HEAL(?:_ABSORBED)?(?:,|$)/;
+// Death recap, as Details! and Blizzard's death recap show it: who hit the
+// player, with what and how hard, in the window before the death. Amounts are
+// the first suffix field, which every log layout shares; the advanced block
+// (19 fields) sits between prefix and suffix when ADVANCED_LOG_ENABLED is 1,
+// and before the environment type. Not yet checked on a real Forever log.
+function fields(event) {
+  const out = [];
+  let cur = "",
+    quoted = false;
+  for (const ch of event) {
+    if (ch === '"') quoted = !quoted;
+    else if (ch === "," && !quoted) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+function prefixLength(name) {
+  if (name.startsWith("SWING_")) return 0;
+  if (name.startsWith("ENVIRONMENTAL_")) return 1;
+  return 3;
+}
+function recap(deathLines, player, advanced, deathAt) {
+  const seen = new Set(),
+    sources = new Map();
+  let damage = 0,
+    heals = 0,
+    hits = 0,
+    firstHit = null,
+    killing = null;
+  for (const line of deathLines) {
+    if (seen.has(line)) continue;
+    seen.add(line);
+    const f = fields(line.slice(line.indexOf("  ") + 2)),
+      name = f[0];
+    if (f[6] !== player) continue;
+    const pre = prefixLength(name),
+      at = 9 + pre + (advanced ? 19 : 0),
+      raw = f[at],
+      amount = /^\d+$/.test(raw || "") ? Number(raw) : null;
+    if (/_HEAL$/.test(name)) {
+      if (amount !== null) heals += amount;
+      continue;
+    }
+    if (!/_DAMAGE$/.test(name)) continue;
+    const t = stamp(line),
+      source = name.startsWith("ENVIRONMENTAL_") ? "Environment" : f[2] || "unknown",
+      spell = pre === 0 ? "Melee" : pre === 1 ? f[at - 1] || "unknown" : f[10] || "unknown",
+      key = `${source}\u0000${spell}`,
+      row = sources.get(key) || { source, spell, hits: 0, damage: 0, unknown: 0 };
+    row.hits++;
+    if (amount === null) row.unknown++;
+    else row.damage += amount;
+    sources.set(key, row);
+    hits++;
+    if (amount !== null) damage += amount;
+    if (firstHit === null && Number.isFinite(t)) firstHit = t;
+    killing = { line, source, spell, amount };
+  }
+  if (!killing) return ["# recap no damage to the player in the window"];
+  const out = [];
+  const before =
+    firstHit !== null && Number.isFinite(deathAt)
+      ? `,first-hit=${Math.max(0, (deathAt - firstHit) / 1000).toFixed(1)}s-before`
+      : "";
+  out.push(`# recap hits=${hits},damage=${damage},heals=${heals}${before}`);
+  const at = killing.line.slice(0, killing.line.indexOf("  ")).split(" ")[1] || "";
+  out.push(
+    `# killing-blow at=${at},source="${killing.source}",spell="${killing.spell}",amount=${killing.amount ?? "?"}`,
+  );
+  const rows = [...sources.values()].sort((a, b) => b.damage - a.damage || b.hits - a.hits);
+  for (const r of rows) {
+    const share = damage ? Math.round((r.damage * 100) / damage) : 0,
+      unknown = r.unknown ? `,unread=${r.unknown}` : "";
+    out.push(
+      `# taken source="${r.source}",spell="${r.spell}",hits=${r.hits},damage=${r.damage},share=${share}%${unknown}`,
+    );
+  }
+  return out;
+}
 function isPlayer(line, player) {
   return line.includes(`"${player}"`);
 }
@@ -244,10 +326,12 @@ async function run(o) {
   );
   if (deathAt !== null) {
     if (deathDamage && !deathSeen) deathLines.push(deathDamage);
-    const dp = o.out + ".death.txt";
+    const dp = o.out + ".death.txt",
+      advanced = lines.some((l) => VERSION.test(l) && /ADVANCED_LOG_ENABLED,1/.test(l)),
+      summary = recap(deathLines, o.player, advanced, deathAt);
     await fs.promises.writeFile(
       dp,
-      `# death player=${o.player} at=${o.death}\n${deathLines.join("\n")}${deathLines.length ? "\n" : ""}`,
+      `# death player=${o.player} at=${o.death}\n${summary.join("\n")}\n${deathLines.join("\n")}${deathLines.length ? "\n" : ""}`,
     );
   }
   return 0;
@@ -274,4 +358,4 @@ if (require.main === module) {
     process.exitCode = 2;
   }
 }
-module.exports = { argsOf, stamp, seekAt, run };
+module.exports = { argsOf, stamp, seekAt, run, recap };
