@@ -674,8 +674,16 @@ local function ActivityLine(chat)
 	local now = GetTime()
 	local started = (a and a.startedAt) or run.sentAt or now
 	local s = "running " .. FmtDur(now - started)
-	if a and not a.unreliable then
-		s = s .. " - " .. a.count .. (a.count == 1 and " action" or " actions")
+	-- Never show fewer actions than the progress text lists: the heartbeat count
+	-- stays at 0 when the sound channel is off.
+	local listed = 0
+	for _ in (chat.progress or ""):gmatch("[^\n]+") do listed = listed + 1 end
+	local reliable = a and not a.unreliable
+	local count = math.max(reliable and a.count or 0, listed)
+	if reliable or listed > 0 then
+		s = s .. " - " .. count .. (count == 1 and " action" or " actions")
+	end
+	if reliable then
 		if a.last then
 			local quiet = now - a.last
 			s = s .. ", last " .. FmtDur(quiet) .. " ago"
@@ -1885,7 +1893,8 @@ function WoWAI.Render()
 		end
 		if c.pendingId then
 			local p = c.progress
-			local head = "working... " .. ActivityLine(c)
+			-- No timer here: the bubble is drawn once and went stale next to the live status line.
+			local head = "working..."
 			if run.statusText and run.statusText ~= "" then head = head .. "\n" .. run.statusText end
 			Place("assistant", (p and p ~= "") and (head .. "\n\n" .. p) or head, "", true, nil, ChatAgent(c))
 		elseif #c.history == 0 then
