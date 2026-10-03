@@ -376,6 +376,25 @@ test('a sent message is encoded on the strip with the chat folder, then a slot r
   assert.ok(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text').includes('C:\\proj'));
 });
 
+test('while the agent works: one timer (the status line) and an action count that matches the listed actions', () => {
+  const vm = newVM();
+  login(vm);
+  connect(vm);
+  vm.run('WoWAI.Send("hello")');
+  const chatId = vm.evaluate('WoWAIDB.chats[1].id');
+  const id = vm.num('WoWAIDB.chats[1].pendingId');
+  vm.run('STUB.texts = {}');
+  nextSlot(vm, `{ now = time(), cwd = "", replies = { { chat = "${chatId}", id = ${id}, status = "working", text = "read a\\nread b\\ngrep c\\nedit d\\nread e\\nread f" } } }`);
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  const texts = vm.evaluate('table.concat(STUB.texts, "|")').split('|');
+  const running = texts.filter(t => t.includes('running '));
+  assert.ok(running.length > 0, 'the status line shows the timer');
+  assert.ok(running.every(t => t.includes('is working on #')), 'only the status line carries a timer: ' + running.join(' / '));
+  assert.ok(running.some(t => t.includes('6 actions')), running.join(' / '));
+  assert.ok(!texts.some(t => t.includes('0 actions')), 'never "0 actions" above a list of six');
+  assert.ok(texts.some(t => t.startsWith('working...') && t.includes('read a') && !t.includes('running ')), 'the working bubble lists the actions without a second timer');
+});
+
 test('a denied reply shows Allow, and Allow resends with the rules as flags', () => {
   const vm = newVM();
   login(vm);
