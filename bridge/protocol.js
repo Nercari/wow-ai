@@ -138,9 +138,14 @@ function sameFolder(a, b) {
 // session (no prompt), "allow=Rule1,Rule2" = add these permission rules before
 // running, "c" = the record carries a game-context field before the text (an
 // empty one clears the context the bridge keeps), "agent=codex" = run this
-// chat with that agent instead of the bridge's default (see agents.js).
+// chat with that agent instead of the bridge's default (see agents.js),
+// "model=sonnet" = run it on that model (one of the agent's modelChoices).
+// A model name as an agent CLI takes it ("opus", "gpt-5-codex",
+// "claude-sonnet-4-5[1m]", "openrouter/x-ai/grok-4"). It goes into argv, never a shell.
+const MODEL_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:\/@\[\]-]{0,63}$/;
+function validModel(m) { return typeof m === 'string' && MODEL_TOKEN.test(m); }
 function parseFlags(flags) {
-  const out = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '', cmd: '' };
+  const out = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '', model: '', cmd: '' };
   for (const tok of String(flags || '').split(';')) {
     if (tok === 'n') out.newSession = true;
     else if (tok === 'h') out.hello = true;
@@ -148,6 +153,7 @@ function parseFlags(flags) {
     else if (tok === 'c') out.context = true;
     else if (tok.startsWith('allow=')) out.allow.push(...tok.slice(6).split(',').map(s => s.trim()).filter(Boolean));
     else if (tok.startsWith('agent=')) out.agent = tok.slice(6).trim().toLowerCase();
+    else if (tok.startsWith('model=')) { const m = tok.slice(6).trim(); if (validModel(m)) out.model = m; }
     else if (tok.startsWith('cmd=')) { const cmd = tok.slice(4); if (/^[a-z0-9-]{1,24}$/.test(cmd)) out.cmd = cmd; }
   }
   return out;
@@ -195,6 +201,8 @@ function parseOutbox(src) {
   if (ctx) job.ctx = fromHex(ctx[1]);
   const agent = b.match(/\["agent"\]\s*=\s*"([0-9a-zA-Z_-]*)"/);
   if (agent && agent[1]) job.agent = agent[1].toLowerCase();
+  const model = b.match(/\["model"\]\s*=\s*"([^"]*)"/);
+  if (model && validModel(model[1])) job.model = model[1];
   const allow = b.match(/\["allow"\]\s*=\s*"([0-9a-fA-F]*)"/);
   if (allow && allow[1]) job.allow = fromHex(allow[1]).split('\x1F').filter(Boolean);
   const cmd = b.match(/\["cmd"\]\s*=\s*"([a-z0-9-]{1,24})"/);
@@ -317,7 +325,8 @@ function luaStr(s) {
 }
 
 // The slot file / Inbox.lua body: the latest record of every chat, the bridge's
-// clock, default folder and default agent (plus the agents it knows), and
+// clock, default folder and default agent (plus the agents installed on this
+// PC and the models each can switch to), and
 // (right after a saved-data reset) a restore bundle.
 function luaTable(globalName, records, opts = {}) {
   const now = opts.now || Date.now();
@@ -330,6 +339,7 @@ function luaTable(globalName, records, opts = {}) {
     `\tcwd = ${luaStr(opts.cwd || '')},`,
     `\tagent = ${luaStr(opts.agent || '')},`,
     `\tagents = { ${agents.map(luaStr).join(', ')} },`,
+    `\tmodels = { ${Object.entries(opts.models || {}).filter(([id, list]) => /^[a-z0-9_-]+$/.test(id) && Array.isArray(list)).map(([id, list]) => `${id} = { ${list.map(luaStr).join(', ')} }`).join(', ')} },`,
     '\treplies = {',
   ];
   for (const r of records) {
@@ -506,7 +516,7 @@ module.exports = {
   fromHex, pad3, slotNumber, chatKey, sessKey,
   alreadyHandled, markHandled, pruneStale, MONTH_MS,
   resolveCwd, isBroadFolder, pickDefaultCwd, sameFolder, baseName,
-  parseFlags, jobsFromStrip, parseOutbox, systemPrompt, splitSummary,
+  parseFlags, validModel, jobsFromStrip, parseOutbox, systemPrompt, splitSummary,
   ruleFor, describeToolUse,
   luaStr, luaTable, SILENT_WAV,
   MAP_LIMITS, validateMapCommand, newMap, applyMapCommands, extractMapBlocks, parseMapFile, luaMap,

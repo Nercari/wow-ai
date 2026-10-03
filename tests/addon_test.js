@@ -531,17 +531,79 @@ test('a chat can pick its agent: the strip says so, replies are labelled by thei
   vm.run('SlashCmdList.WOWAI("agent default")');
   assert.equal(vm.evaluate('WoWAIDB.chats[1].agent'), '');
   assert.ok(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text').includes('agent reset to the bridge\'s default: Claude'));
-  // The Agent... menu item opens a prompt prefilled with the chat's agent.
+  // The AI picker lists the bridge default and each agent the bridge has; one click switches.
   vm.run('WoWAI.SetAgent("grok"); WoWAI.AgentPrompt()');
-  assert.equal(vm.evaluate('STUB.popup.which'), 'WOWAI_AGENT');
-  assert.equal(vm.evaluate('STUB.popup.data.agent'), 'grok');
-  vm.run(`
-    local dialog = { editBox = { GetText = function() return " codex " end } }
-    StaticPopupDialogs.WOWAI_AGENT.OnAccept(dialog, STUB.popup.data)`);
+  assert.equal(vm.evaluate('WoWAIPoolPicker.shown'), 'true');
+  assert.equal(vm.evaluate('#WoWAI.PoolChoices()'), '4');
+  vm.run(`for _, r in ipairs(WoWAIPoolPicker.rows) do if r.shown and r.agent == "codex" then r.scripts.OnClick(r) end end`);
   assert.equal(vm.evaluate('WoWAIDB.chats[1].agent'), 'codex');
+  assert.equal(vm.evaluate('WoWAIPoolPicker.shown'), 'false');
   // A new chat inherits the agent, like the folder.
   vm.run('WoWAI.NewChat("Second")');
   assert.equal(vm.evaluate('WoWAIDB.chats[2].agent'), 'codex');
+});
+
+test('the AI picker switches between the agents installed on the PC and their models', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('STUB.RunTimers()');
+  // This bridge PC has Claude (three models) and Hermes (no model list); Codex is not installed.
+  const slot = replies => `{ now = time(), cwd = "", agent = "claude", agents = { "claude", "hermes" }, models = { claude = { "opus", "sonnet", "haiku" }, hermes = { } }, replies = { ${replies || ''} } }`;
+  nextSlot(vm, slot());
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  assert.equal(vm.evaluate('WoWAI.IsConnected()'), 'true');
+  assert.equal(vm.evaluate('WoWAIPoolButton.text'), 'AI: Claude');
+  // Rows: bridge default, Claude, Claude · opus/sonnet/haiku, Hermes.
+  vm.run('WoWAIPoolButton.scripts.OnClick(WoWAIPoolButton)');
+  assert.equal(vm.evaluate('WoWAIPoolPicker.shown'), 'true');
+  const labels = () => vm.evaluate('(function() local t = {} for _, r in ipairs(WoWAIPoolPicker.rows) do if r.shown then t[#t + 1] = r.label.text end end return table.concat(t, "\\n") end)()');
+  const rows = labels().split('\n');
+  assert.equal(rows.length, 6);
+  assert.match(rows[0], /> Bridge default \(Claude\)/, 'the current choice is marked');
+  assert.ok(rows.some(r => r.includes('Claude · sonnet')));
+  assert.ok(!labels().includes('Codex'), 'agents the PC does not have are not offered');
+  // Pick Claude · sonnet: the strip and the reload outbox carry agent and model.
+  vm.run(`for _, r in ipairs(WoWAIPoolPicker.rows) do if r.shown and r.model == "sonnet" then r.scripts.OnClick(r) end end`);
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].agent'), 'claude');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].model'), 'sonnet');
+  assert.ok(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text').includes('agent set to Claude · sonnet'));
+  assert.equal(vm.evaluate('WoWAIPoolButton.text'), 'AI: Claude · sonnet');
+  vm.run('WoWAI.Send("which model?")');
+  assert.equal(stripRecords(vm).find(r => r.text === 'which model?').flags, 'agent=claude;model=sonnet');
+  assert.equal(vm.evaluate('WoWAIDB.outbox.model'), 'sonnet');
+  vm.run('WoWAI.Resend()');
+  assert.equal(stripRecords(vm).find(r => r.text === 'which model?').flags, 'agent=claude;model=sonnet');
+  vm.run('SlashCmdList.WOWAI("cancel")');
+  // Reopened, the picker marks the new choice.
+  vm.run('WoWAI.AgentPrompt()');
+  assert.ok(labels().split('\n').find(r => r.includes('> ')).includes('Claude · sonnet'));
+  vm.run('WoWAI.AgentPrompt()');
+  assert.equal(vm.evaluate('WoWAIPoolPicker.shown'), 'false', 'a second click closes it');
+  // Typed: /wow-ai agent <name> <model>; unknown models are refused, the agent alone drops the model.
+  vm.run('SlashCmdList.WOWAI("agent claude haiku")');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].model'), 'haiku');
+  vm.run('SlashCmdList.WOWAI("agent claude gpt-9")');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].model'), 'haiku');
+  assert.ok(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text').includes('Unknown model "gpt-9" for Claude'));
+  vm.run('SlashCmdList.WOWAI("agent hermes x")');
+  assert.ok(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text').includes('Models: only its default'));
+  vm.run('SlashCmdList.WOWAI("agent codex")');
+  assert.ok(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text').includes('This PC has: claude, hermes'));
+  vm.run('SlashCmdList.WOWAI("agent hermes")');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].agent'), 'hermes');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].model'), '');
+  vm.run('WoWAI.Send("hi hermes")');
+  assert.equal(stripRecords(vm).find(r => r.text === 'hi hermes').flags, 'agent=hermes');
+  vm.run('SlashCmdList.WOWAI("cancel")');
+  // A sentence after "agent" is a message, not a switch.
+  vm.run('SlashCmdList.WOWAI("agent claude what is my best talent")');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].agent'), 'hermes');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].role'), 'user');
+  vm.run('SlashCmdList.WOWAI("cancel")');
+  // A new chat inherits agent and model.
+  vm.run('SlashCmdList.WOWAI("agent claude opus")');
+  vm.run('WoWAI.NewChat("Second")');
+  assert.equal(vm.evaluate('WoWAIDB.chats[2].model'), 'opus');
 });
 
 test('replies saved under the old "claude" role are read as assistant replies from Claude', () => {

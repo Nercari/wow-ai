@@ -28,6 +28,18 @@ test('agent ids, display names and the legacy Claude config keys', () => {
   assert.deepEqual(A.agentConfig({ agents: { grok: { model: 'grok-build' } } }, 'grok'), { model: 'grok-build' });
 });
 
+test('modelChoices: the models a chat can switch an agent to in game', () => {
+  // Claude offers its own aliases when agents.claude.models is not set.
+  assert.deepEqual(A.modelChoices({}, 'claude'), ['opus', 'sonnet', 'haiku']);
+  // The configured default comes first, without duplicates.
+  assert.deepEqual(A.modelChoices({ model: 'sonnet' }, 'claude'), ['sonnet', 'opus', 'haiku']);
+  assert.deepEqual(A.modelChoices({ models: ['gpt-5-codex', 'gpt-5'] }, 'codex'), ['gpt-5-codex', 'gpt-5']);
+  assert.deepEqual(A.modelChoices({ models: [] }, 'claude'), []);
+  // Other agents offer nothing unless config.json lists models; bad names are dropped.
+  assert.deepEqual(A.modelChoices({}, 'grok'), []);
+  assert.deepEqual(A.modelChoices({ models: ['ok-1', '--yolo', 'a b', 7] }, 'hermes'), ['ok-1']);
+});
+
 test('Claude Code: headless stream-json with the allowlist, resume and system prompt; prompt on stdin', () => {
   const cfg = { permissionMode: 'acceptEdits', allowedTools: ['WebSearch', 'Bash(git:*)'], model: 'opus' };
   const args = A.AGENTS.claude.args({ cfg, resume: 'sess-1', system: SYS, cwd: 'C:\\p' });

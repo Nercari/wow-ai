@@ -13,7 +13,7 @@ test('luaStr escapes everything Lua 5.1 needs', () => {
 });
 
 test('parseFlags reads new-session, hello, forget, context, agent and allow lists', () => {
-  const none = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '', cmd: '' };
+  const none = { newSession: false, hello: false, forget: false, context: false, allow: [], agent: '', model: '', cmd: '' };
   assert.deepEqual(P.parseFlags(''), none);
   assert.deepEqual(P.parseFlags('n'), { ...none, newSession: true });
   assert.deepEqual(P.parseFlags('h'), { ...none, hello: true });
@@ -22,13 +22,19 @@ test('parseFlags reads new-session, hello, forget, context, agent and allow list
   assert.deepEqual(P.parseFlags('n;allow=WebSearch, Bash(git:*),'), { ...none, newSession: true, allow: ['WebSearch', 'Bash(git:*)'] });
   assert.deepEqual(P.parseFlags('agent=Codex'), { ...none, agent: 'codex' });
   assert.deepEqual(P.parseFlags('n;agent=grok;allow=WebSearch'), { ...none, newSession: true, agent: 'grok', allow: ['WebSearch'] });
+  // A model keeps its case; anything that could be read as a CLI flag or shell text is dropped.
+  assert.deepEqual(P.parseFlags('agent=claude;model=claude-sonnet-4-5[1m]'), { ...none, agent: 'claude', model: 'claude-sonnet-4-5[1m]' });
+  assert.equal(P.parseFlags('agent=hermes;model=openrouter/x-ai/grok-4').model, 'openrouter/x-ai/grok-4');
+  for (const bad of ['--dangerously-skip-permissions', 'a b', 'x$(y)', 'o"pus', 'a'.repeat(65), '']) {
+    assert.equal(P.parseFlags('model=' + bad).model, '', bad);
+  }
 });
 
 test('jobsFromStrip parses the current record format and keeps separators inside text', () => {
   const rec = ['sess', 'chat1', '12', 'realms', 'allow=WebSearch', 'My chat', 'hello\x1Fworld'].join('\x1F');
   const jobs = P.jobsFromStrip(12, rec);
   assert.equal(jobs.length, 1);
-  assert.deepEqual(jobs[0], { session: 'sess', chat: 'chat1', id: 12, cwd: 'realms', newSession: false, hello: false, forget: false, context: false, allow: ['WebSearch'], agent: '', cmd: '', name: 'My chat', text: 'hello\x1Fworld', via: 'pixel' });
+  assert.deepEqual(jobs[0], { session: 'sess', chat: 'chat1', id: 12, cwd: 'realms', newSession: false, hello: false, forget: false, context: false, allow: ['WebSearch'], agent: '', model: '', cmd: '', name: 'My chat', text: 'hello\x1Fworld', via: 'pixel' });
   // A chat that picked its own agent says so in the flags.
   const codex = P.jobsFromStrip(13, ['sess', 'chat1', '13', '', 'agent=codex', 'My chat', 'hi'].join('\x1F'))[0];
   assert.equal(codex.agent, 'codex');
@@ -98,6 +104,10 @@ test('splitSummary takes the last TL;DR block for the game chat and keeps the wh
   const lua = P.luaTable('WoWAI_SlotData', [{ chat: 'c', id: 1, status: 'done', text: 'body\nTL;DR: short', summary: 'short' }, { chat: 'c', id: 2, status: 'done', text: 'plain' }]);
   assert.ok(lua.includes('summary = "short"'));
   assert.equal((lua.match(/summary = /g) || []).length, 1);
+  // The agents installed on the bridge PC, and the models each can switch to.
+  const pools = P.luaTable('WoWAI_SlotData', [], { agent: 'claude', agents: ['claude', 'codex'], models: { claude: ['opus', 'sonnet'], codex: [], 'bad id': ['x'] } });
+  assert.ok(pools.includes('agents = { "claude", "codex" },'));
+  assert.ok(pools.includes('models = { claude = { "opus", "sonnet" }, codex = {  } },'));
 });
 
 test('the shipped primer exists, mentions the essentials, and stays small enough to send on every run', () => {
@@ -130,6 +140,9 @@ test('parseOutbox decodes the SavedVariables fallback', () => {
   const withAgent = src.replace('["newSession"]', '["agent"] = "codex",\n["newSession"]');
   assert.equal(P.parseOutbox(withAgent).agent, 'codex');
   assert.equal(P.parseOutbox(src).agent, undefined);
+  const withModel = src.replace('["newSession"]', '["agent"] = "claude",\n["model"] = "sonnet",\n["newSession"]');
+  assert.equal(P.parseOutbox(withModel).model, 'sonnet');
+  assert.equal(P.parseOutbox(src.replace('["newSession"]', '["model"] = "-x",\n["newSession"]')).model, undefined);
   assert.equal(P.parseOutbox('WoWAIDB = {}'), null);
   assert.equal(P.parseOutbox('["outbox"] = { ["text"] = "" }'), null);
 });
