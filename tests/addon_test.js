@@ -426,6 +426,24 @@ test('the window opens at the top centre on a fresh install and where it was lef
   assert.equal(vm.num('WoWAIFrame.y'), 12);
 });
 
+test('each slash command in a reply gets a copy button that opens the copy box with only that line', () => {
+  const vm = newVM();
+  login(vm);
+  const lines = t => vm.evaluate(`table.concat(WoWAI.CommandLines(${JSON.stringify(t)}), "|")`);
+  assert.equal(lines('Try this:\n- `/wow-ai help`\n/who Stormwind\nplain text'), '/wow-ai help|/who Stormwind');
+  assert.equal(lines('/usr/bin/node is a path\n/run print(1)\n/script x()\n/console foo 1\n/dump x'), '', 'no paths, no script lines');
+  assert.equal(lines('/runscript x()\n/RUN x\n/who and then /run x\n/who then /Script y'), '', 'a script anywhere on the line means no button');
+  assert.equal(lines('/a\n/b\n/c\n/d\n/e'), '/a|/b|/c|/d', 'capped at four');
+
+  connect(vm);
+  vm.run('WoWAI.Toggle(true); WoWAI.Send("hello")');
+  const chatId = vm.evaluate('WoWAIDB.chats[1].id');
+  const id = vm.num('WoWAIDB.chats[1].pendingId');
+  nextSlot(vm, `{ now = time(), cwd = "", replies = { { chat = "${chatId}", id = ${id}, status = "done", text = "Type this:\\n/wow-ai echo off" } } }`);
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  assert.ok(vm.evaluate('table.concat(STUB.texts, "|")').includes('copy: /wow-ai echo off'), 'the button is drawn');
+});
+
 test('a reply is shown once: no chat echo while its window is open', () => {
   const vm = newVM();
   login(vm);

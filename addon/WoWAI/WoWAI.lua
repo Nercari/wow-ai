@@ -1847,6 +1847,27 @@ local function GetBubble(i)
 	return b
 end
 
+-- The slash commands in a reply, one per line (backticks and list marks dropped),
+-- so each can get its own copy button. Capped: a long list would bury the reply.
+local COPY_MAX = 4
+local NO_COPY = { run = true, script = true, runscript = true, console = true, dump = true }
+function WoWAI.CommandLines(text)
+	local out = {}
+	for line in (tostring(text or "") .. "\n"):gmatch("(.-)\r?\n") do
+		local cmd = line:match("^[%s%-%*>`]*(/%a[^`]*)")
+		local word = cmd and cmd:match("^/([%w_%-]+)")
+		-- Not a file path, and never a script line: those are not offered for pasting.
+		local script = false
+		for w in (cmd or ""):gmatch("/(%a+)") do
+			if NO_COPY[w:lower()] then script = true end
+		end
+		if word and not cmd:match("^/[%w_%-]+/") and not script then
+			if #out < COPY_MAX then table.insert(out, Trim(cmd)) end
+		end
+	end
+	return out
+end
+
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
@@ -1890,6 +1911,28 @@ function WoWAI.Render()
 			else
 				b.allow:Hide()
 			end
+			-- One small copy button per command line of a finished reply: the copy box
+			-- opens with only that line. The player still pastes and sends it.
+			local cmds = (role == "assistant" and not dim) and WoWAI.CommandLines(text) or {}
+			b.copies = b.copies or {}
+			for k, cmd in ipairs(cmds) do
+				local cb = b.copies[k]
+				if not cb then
+					cb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+					cb:SetHeight(20)
+					cb:SetScript("OnClick", function(self) WoWAI.ShowCopy(self.line) end)
+					b.copies[k] = cb
+				end
+				local label = "copy: " .. Display(#cmd > 44 and (cmd:sub(1, 44) .. "...") or cmd)
+				cb:SetText(label)
+				cb:SetWidth(math.min(width - 24, cb:GetFontString():GetStringWidth() + 30))
+				cb.line = cmd
+				cb:ClearAllPoints()
+				cb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
+				cb:Show()
+				extra = extra + 24
+			end
+			for k = #cmds + 1, #b.copies do b.copies[k]:Hide() end
 			b:SetHeight(6 + 12 + 4 + h + 8 + extra)
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", ui.content, "TOPLEFT", 0, -y)
