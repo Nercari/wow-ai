@@ -99,6 +99,9 @@ function bridgeRunning(bridgeDir = BRIDGE) {
 
 function stopBridge(bridgeDir = BRIDGE) {
   run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(bridgeDir, 'stop-bridge.ps1')]);
+  // The minimized "WoW AI bridge" window (cmd /k) outlives its node process;
+  // close it too so a restart doesn't leave an empty window behind.
+  run('taskkill', ['/FI', 'WINDOWTITLE eq WoW AI bridge*', '/T', '/F']);
 }
 
 function startBridge(bridgeDir = BRIDGE) {
