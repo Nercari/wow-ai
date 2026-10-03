@@ -769,6 +769,46 @@ test('chat rows: right-click opens a menu that renames or sets the folder of tha
   assert.equal(vm.evaluate('WoWAIDB.chats[1].name'), 'Chat 1');
 });
 
+test('chat list: only the rows that fit the panel show, the wheel scrolls the rest into view, the active chat stays visible', () => {
+  const vm = newVM();
+  login(vm);
+  for (let i = 2; i <= 12; i++) vm.run(`SlashCmdList.WOWAI("new Room${i}")`);
+  assert.equal(vm.num('#WoWAIDB.chats'), 12);
+  // Minimum window: the panel is 198px tall, which fits 7 rows of 21px under the New chat button.
+  vm.run('WoWAIChatPanel.height = 198');
+  vm.run('WoWAIChatPanel.hooks.OnSizeChanged[1](WoWAIChatPanel, 150, 198)');
+  const rows = () => vm.evaluate(`(function()
+    local out = {}
+    for _, b in ipairs(WoWAIChatPanel.children) do
+      if b.kind == "Button" and b.chatId then
+        out[#out + 1] = b.shown and WoWAIDB.chats[1].id and b.label.text or "-"
+      end
+    end
+    return table.concat(out, "|")
+  end)()`).split('|');
+  assert.equal(rows().filter(r => r !== '-').length, 7, 'seven rows fit, the rest are hidden');
+  // The newest chat is active, so the list was scrolled to put it in view.
+  assert.equal(rows().filter(r => r !== '-').slice(-1)[0], 'Room12');
+  assert.equal(rows().filter(r => r !== '-')[0], 'Room6');
+  // Wheel up (delta 1) brings earlier chats back in, down goes the other way, both stop at the ends.
+  for (let i = 0; i < 20; i++) vm.run('WoWAIChatPanel.scripts.OnMouseWheel(WoWAIChatPanel, 1)');
+  assert.equal(rows().filter(r => r !== '-')[0], 'Chat 1');
+  assert.equal(rows().filter(r => r !== '-').length, 7);
+  vm.run('WoWAIChatPanel.scripts.OnMouseWheel(WoWAIChatPanel, -1)');
+  assert.equal(rows().filter(r => r !== '-')[0], 'Room2');
+  for (let i = 0; i < 20; i++) vm.run('WoWAIChatPanel.scripts.OnMouseWheel(WoWAIChatPanel, -1)');
+  assert.equal(rows().filter(r => r !== '-').slice(-1)[0], 'Room12');
+  // Switching to a chat that is off-screen scrolls it into view.
+  vm.run('for i = 1, 20 do WoWAIChatPanel.scripts.OnMouseWheel(WoWAIChatPanel, 1) end');
+  vm.run('WoWAI.SwitchChat(WoWAIDB.chats[12].id)');
+  vm.run('WoWAI.SwitchChat(WoWAIDB.chats[1].id)');
+  assert.equal(rows().filter(r => r !== '-')[0], 'Chat 1');
+  // A taller window shows more rows; one tall enough for all of them shows all 12.
+  vm.run('WoWAIChatPanel.height = 420');
+  vm.run('WoWAIChatPanel.hooks.OnSizeChanged[1](WoWAIChatPanel, 150, 420)');
+  assert.equal(rows().filter(r => r !== '-').length, 12);
+});
+
 test('minimize collapses to the mini bar and back; the mini bar X hides everything', () => {
   const vm = newVM();
   login(vm);

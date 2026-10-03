@@ -23,6 +23,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - A `/wow-ai reload` asked for during combat no longer calls `ReloadUI()` when combat ends (the game blocks it outside a keypress or click and blamed the addon); it reloads on your first keypress after combat.
 - The Clear button no longer wipes the chat on one click. The first click changes it to "Sure?" for 3 seconds, the second clears; it has a tooltip that says so.
 - The red policy banner is no longer painted over by the mini bar: it sits below it, stays on screen, and closes with Esc as well as Dismiss.
+- The chat list in the window drew up to 16 rows even when only about 8 fit, so the extra rows painted over the bottom buttons. It now shows only the rows that fit, re-fits when the window is resized, and the mouse wheel over the list scrolls to the rest (the active chat is kept in view).
 
 ### Added
 
