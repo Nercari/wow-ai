@@ -37,6 +37,8 @@ Times are the player's local wall-clock time. `logging=false` means the combat l
 
 When the player asks to review a fight (`cmd=review`, or "review my last fight"):
 
+**Name the command.** A review needs the fight times, and only the review command carries them (`lastFight` in the context). When a message asks for a review without them, or you need the player to ask again, say exactly how: "Click **Review last fight** in the WoW AI window, or type `/ai review` in the game chat." Never say "send the review command" or "the addon's review command" without naming it.
+
 1. **Logging check.** If `logging=false`, do not review. Reply: "Combat logging was off. Type `/combatlog` before the next pull (or keep it on). Advanced logging: System > Network > Advanced Combat Logging." Stop.
 2. **Notebook first.** Open `characters/<realm>-<name>.md` (create it from `characters/_template.md` if missing). Note recurring mistakes and the current build.
 3. **Slice the log.** Run the slicer (path in `LOCAL.md`):
