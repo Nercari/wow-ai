@@ -72,6 +72,8 @@ test('systemPrompt always asks for the TL;DR block, and wraps the game context a
   assert.ok(!P.systemPrompt('').includes('WOW_AI_MAP_FILE'), 'map hint only with the game context');
   assert.ok(s.includes('\nGame: World of Warcraft: Forever\nCharacter: Testchar, level 23 Hunter\n'));
   assert.ok(s.includes('Linked from the game'));
+  assert.ok(s.includes('Never give the player /run, /script, /console or /dump lines') && s.includes('menu path'), 'settings come as menu paths, not scripts');
+  assert.ok(!P.systemPrompt('').includes('/run'), 'the script rule only goes with the game context');
   assert.ok(!s.includes('Reference for writing addons'), 'no primer section without a primer');
   // The primer rides with the context, and only with it.
   const withPrimer = P.systemPrompt('Character: Testchar', '# Primer\n\nUse local.');
@@ -226,4 +228,10 @@ test('pickDefaultCwd: explicit wins, broad start and config folders fall back to
   // The video case: started in Documents, config written by setup from Documents.
   assert.deepEqual(pick({ started: docs, config: docs }), { dir: mentorDir, source: 'mentor workspace' });
   assert.deepEqual(pick({ started: '', config: '' }), { dir: mentorDir, source: 'mentor workspace' });
+});
+
+test('the mentor prompt forbids paste-in scripts and asks for menu paths', () => {
+  const mentor = require('fs').readFileSync(path.join(__dirname, '..', 'mentor', 'AGENTS.md'), 'utf8');
+  const rule = mentor.split('\n').find(l => l.includes('**No scripts to paste.**')) || '';
+  for (const word of ['`/run`', '`/script`', '`/console`', '`/dump`', 'menu path', 'Options > Keybindings']) assert.ok(rule.includes(word), word);
 });
