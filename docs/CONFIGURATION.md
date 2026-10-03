@@ -112,7 +112,7 @@ Each chat can pick its own folder with `/wow-ai cd` or **Folder...** in the menu
 2. `WOW_AI_PROJECT`
 3. The folder the bridge was started from, unless that is inside this repo or a broad folder
 4. `defaultCwd` in `config.json`, unless it is a broad folder
-5. The mentor workspace (`forever.mentorDir`, by default `wow-mentor` next to this repo), created from the `mentor/` template on first use
+5. The mentor workspace (`forever.mentorDir`, by default `wow-mentor` next to this repo), created from the `mentor/` template on first use. Its `AGENTS.md` is refreshed from the template at each bridge start (the replaced copy is kept as `AGENTS.md.bak`); put your own notes in `LOCAL.md`, which is never overwritten
 
 A broad folder is a drive root, your home folder or anything above it, or its Documents, Desktop or Downloads (also inside OneDrive): an agent working there reads unrelated files. Naming one on purpose (`--project`, `WOW_AI_PROJECT`, `/wow-ai cd`) still works, and every reply in it carries a one-line warning.
 
