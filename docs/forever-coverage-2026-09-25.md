@@ -4,7 +4,7 @@ Branch `forever`. How each acceptance criterion (spec v1 AC1–AC8, spec v2 AC9�
 
 - **Auto**: a test in `npm test` (file: test name).
 - **Dry run**: a real `codex exec` transcript through `runAgentOnce` and the mentor guard. See `docs/forever-dryrun-2026-09-25.md` (first batch) and `docs/forever-dryrun2-2026-09-25.md` (gap batch).
-- **Live**: needs the Forever client, which is not installed on this PC yet (no `_classic_beta_`). Pedro installs it after 2026-10-02 and then runs these with the WOW-02 probe kit (`probe/PROBE.md`).
+- **Live**: needs the Forever client, installed on Pedro's PC on 2026-10-03. Pedro runs these with the WOW-02 probe kit (`probe/PROBE.md`); results go in the live log below.
 
 Spec v2 accepts prompt-only features (F02, F05–F07, F10, F11, F13, F14, F16, F18 drafts, F19 text, F20 synthesis) by a dry-run transcript. Gated features pass their own AC or a documented fallback.
 
@@ -44,6 +44,12 @@ Spec v2 accepts prompt-only features (F02, F05–F07, F10, F11, F13, F14, F16, F
 | 32 | Every outbound prompt in the audit log | p2: audit appends prompt fields, prunes old files | — | — |
 | 33 | `/wowai off` stops everything, stays off across `/reload` and restarts | p2: kill switch refuses jobs, stops capture and agents; p7: builder and PTT honor KILLED; addon_p3_behavior: off switch reaches the bridge in combat | — | addon-side state across `/reload` gated on WOW-02 SavedVariables read-back |
 | 34 | Simulated policy diff → alert and banner | policy-watch: changed diff and alert, alert after 2 failures; addon_p4_features: policy banner | — | — |
+
+## Live check log
+
+| Date | Check | Result | Notes |
+|---|---|---|---|
+| 2026-10-03 | Addon installs and loads on Forever (Windows) | PASS | First login showed a Lua error at `Forever.lua:27` (retail-only AH search events in the bulk module). Fixed in PR #2; after updating and restarting the client, Pedro saw no error on login. |
 
 ## WOW-02 gate table
 The gates (strip decode, SavedVariables read-back, `Screenshot()` and PNG decode, advanced-logging positions, `C_DamageMeter`, `C_AuctionHouse`, voices) are listed in `probe/PROBE.md`. None has run yet: the Forever beta client gets installed after 2026-10-02.
