@@ -34,7 +34,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 17. **Window opens on top of the game chat** (done, PR #22; live look pending) by default (0:00, 5:10). Pick a default position clear of the chat.
 18. **Copy button per command line** (done, PR #26; live look pending). A small [copy] link next to each command opens the copy box with only that line (7:45).
 19. **Settings as a menu checklist** (done, PR #15). The mentor gives settings as menu paths the player ticks ("Options > Controls > Auto Loot: on") instead of scripts. Avoids the popups at 7:55 and 8:00. Builds on item 11.
-20. **Starter questions for a new character.** A first-run card with four questions fitted to class and level (0:00).
+20. **Starter questions for a new character** (done, PR #30; live look pending). A first-run card with four questions fitted to class and level (0:00).
 21. **Level-up nudge** (done, PR #29; live check pending). After the fight in which the player levels up, offer "what changes at this level?" (6:20). Out of combat only; extends the level re-run from WOW-11.
 22. **Death recap** (from Details! and Blizzard's death recap; see `docs/similar-addons-2026-10-03.md`). Recap lines at the top of `.death.txt` (done, PR #6).
 23. **Health before each hit.** Add the player's health before each hit and the overkill of the killing blow to the death recap, read from the advanced log block. Needs a real Forever log with advanced logging (item 1) to confirm the field layout.
