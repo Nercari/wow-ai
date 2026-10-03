@@ -151,8 +151,11 @@ const HEAL = /_HEAL(?:_ABSORBED)?(?:,|$)/;
 // Death recap, as Details! and Blizzard's death recap show it: who hit the
 // player, with what and how hard, in the window before the death. Amounts are
 // the first suffix field, which every log layout shares; the advanced block
-// (19 fields) sits between prefix and suffix when ADVANCED_LOG_ENABLED is 1,
-// and before the environment type. Not yet checked on a real Forever log.
+// (19 fields) sits between prefix and suffix when ADVANCED_LOG_ENABLED is 1;
+// logs differ on whether it comes before or after the environment type,
+// so the environment type is looked up by name rather than by position.
+// Not yet checked on a real Forever log.
+const ENVIRONMENT = /^(?:Falling|Drowning|Fatigue|Fire|Lava|Slime)$/i;
 function fields(event) {
   const out = [];
   let cur = "",
@@ -197,7 +200,7 @@ function recap(deathLines, player, advanced, deathAt) {
     if (!/_DAMAGE$/.test(name)) continue;
     const t = stamp(line),
       source = name.startsWith("ENVIRONMENTAL_") ? "Environment" : f[2] || "unknown",
-      spell = pre === 0 ? "Melee" : pre === 1 ? f[at - 1] || "unknown" : f[10] || "unknown",
+      spell = pre === 0 ? "Melee" : pre === 1 ? f.slice(9, at).find((v) => ENVIRONMENT.test(v)) || "unknown" : f[10] || "unknown",
       key = `${source}\u0000${spell}`,
       row = sources.get(key) || { source, spell, hits: 0, damage: 0, unknown: 0 };
     row.hits++;

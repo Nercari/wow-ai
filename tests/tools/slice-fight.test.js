@@ -248,5 +248,7 @@ test("recap reads amounts after the advanced block, environment and heals, and f
     '# taken source="Mob",spell="Fireball",hits=1,damage=40,share=40%',
     '# taken source="Mob",spell="Melee",hits=1,damage=0,share=0%,unread=1',
   ]);
+  const typeFirst = `1/2/2026 03:04:04.000  ENVIRONMENTAL_DAMAGE,0000000000000000,nil,0x80000000,0x80000000,Player-1,"Hero-Realm",0x511,0x0,Lava,${adv},70,0,4,0,0,0,nil,nil,nil`;
+  assert.equal(recap([typeFirst], "Hero-Realm", true, NaN)[1], '# killing-blow at=03:04:04.000,source="Environment",spell="Lava",amount=70');
   assert.deepEqual(recap([], "Hero-Realm", false, NaN), ["# recap no damage to the player in the window"]);
 });
