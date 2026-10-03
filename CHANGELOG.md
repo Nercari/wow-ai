@@ -24,6 +24,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - The Clear button no longer wipes the chat on one click. The first click changes it to "Sure?" for 3 seconds, the second clears; it has a tooltip that says so.
 - The red policy banner is no longer painted over by the mini bar: it sits below it, stays on screen, and closes with Esc as well as Dismiss.
 - The chat list in the window drew up to 16 rows even when only about 8 fit, so the extra rows painted over the bottom buttons. It now shows only the rows that fit, re-fits when the window is resized, and the mouse wheel over the list scrolls to the rest (the active chat is kept in view).
+- The transcript no longer jumps to the bottom every time the window redraws (resize, status line, progress updates) while you are reading further up. It follows the bottom only if you were already there, you switched chat, or a new message arrived.
 
 ### Added
 

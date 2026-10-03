@@ -1843,6 +1843,11 @@ end
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
+		-- Follow the bottom only when the player is there, switched chat, or a new
+		-- message arrived; a resize or status refresh keeps a scrolled-up position.
+		local last = c.history[#c.history]
+		local stick = ui.scrollStick ~= false or ui.scrollChat ~= c.id or ui.scrollLast ~= last
+		ui.scrollChat, ui.scrollLast = c.id, last
 		local width = ui.scroll:GetWidth()
 		if not width or width < 80 then width = 400 end
 		ui.content:SetWidth(width)
@@ -1910,9 +1915,15 @@ function WoWAI.Render()
 			ui.bubbles[i]:Hide()
 		end
 		ui.content:SetHeight(math.max(y, 1))
+		-- The decision is parked on ui so renders queued close together settle it
+		-- once, and a stale timer can't pull a player who scrolled up to the bottom.
+		ui.scrollWantBottom = ui.scrollWantBottom or stick
 		C_Timer.After(0.05, function()
 			if ui.scroll then
-				ui.scroll:SetVerticalScroll(ui.scroll:GetVerticalScrollRange())
+				local range = ui.scroll:GetVerticalScrollRange()
+				local toBottom = ui.scrollWantBottom
+				ui.scrollWantBottom = nil
+				ui.scroll:SetVerticalScroll(toBottom and range or math.min(ui.scroll:GetVerticalScroll(), range))
 			end
 		end)
 	end
@@ -2448,6 +2459,10 @@ local function BuildUI()
 	scroll:SetScrollChild(content)
 	ui.content = content
 	ui.bubbles = {}
+	-- Remember whether the player sits at the bottom (the new-message default).
+	scroll:HookScript("OnVerticalScroll", function(self, offset)
+		ui.scrollStick = self:GetVerticalScrollRange() - (offset or 0) <= 4
+	end)
 	scroll:HookScript("OnSizeChanged", function(self, w, h)
 		if ui.frame:IsShown() then WoWAI.Render() end
 	end)

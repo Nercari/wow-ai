@@ -67,7 +67,15 @@ function Methods.SetPoint(self, point, rel, relPoint, x, y)
 	if type(rel) == "number" then x, y = rel, relPoint end
 	self.x, self.y = x or 0, y or 0
 end
-function Methods.GetVerticalScrollRange(self) return 0 end
+-- Scroll frames: tests set .vrange; SetVerticalScroll clamps to it and fires OnVerticalScroll like the client.
+function Methods.GetVerticalScrollRange(self) return self.vrange or 0 end
+function Methods.GetVerticalScroll(self) return self.vscroll or 0 end
+function Methods.SetVerticalScroll(self, v)
+	v = math.max(0, math.min(v, self:GetVerticalScrollRange()))
+	self.vscroll = v
+	if self.scripts.OnVerticalScroll then self.scripts.OnVerticalScroll(self, v) end
+	for _, fn in ipairs(self.hooks.OnVerticalScroll or {}) do fn(self, v) end
+end
 function Methods.CreateTexture(self, name, layer)
 	local t = NewObject("Texture", name, self)
 	table.insert(self.textures, t)
