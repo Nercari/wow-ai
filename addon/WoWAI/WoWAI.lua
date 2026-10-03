@@ -1835,6 +1835,13 @@ local function GetBubble(i)
 	b:SetScript("OnMouseUp", function(self, button)
 		if button == "LeftButton" and self.text and self.text ~= "" then WoWAI.ShowCopy(self.text) end
 	end)
+	b:SetScript("OnEnter", function(self)
+		if not self.text or self.text == "" then return end
+		GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+		GameTooltip:SetText("Click to copy this message")
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.bubbles[i] = b
 	if WoWAIForever and WoWAIForever.Fire then WoWAIForever.Fire("BUBBLE_BUILT", b) end
 	return b

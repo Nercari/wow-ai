@@ -774,6 +774,24 @@ test('the transcript keeps a scrolled-up position on resize and status refresh, 
   assert.equal(scrolled(), 700, 'switching chat goes to the bottom');
 });
 
+test('a message bubble hints that a click copies it, and the hint goes away on leave', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('WoWAI.Toggle(true)');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "copy me")');
+  vm.run('WoWAI.Render()');
+  vm.run('BUBBLE = WoWAIContent.children[1]');
+  assert.equal(vm.evaluate('BUBBLE.text'), 'copy me');
+  vm.run('BUBBLE.scripts.OnEnter(BUBBLE)');
+  assert.equal(vm.evaluate('GameTooltip.shown'), 'true');
+  assert.equal(vm.evaluate('GameTooltip.text'), 'Click to copy this message');
+  vm.run('BUBBLE.scripts.OnLeave(BUBBLE)');
+  assert.equal(vm.evaluate('GameTooltip.shown'), 'false');
+  // And the click still opens the copy box.
+  vm.run('BUBBLE.scripts.OnMouseUp(BUBBLE, "LeftButton")');
+  assert.equal(vm.evaluate('WoWAICopyBox.text'), 'copy me');
+});
+
 test('chat rows: right-click opens a menu that renames or sets the folder of that chat, the trash can asks before deleting', () => {
   const vm = newVM();
   login(vm);
