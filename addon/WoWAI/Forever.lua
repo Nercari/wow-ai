@@ -2,6 +2,7 @@
 WoWAIForever = WoWAIForever or { modules = {} }
 WoWAIForever.modules = WoWAIForever.modules or {}
 WoWAIForever.listeners = WoWAIForever.listeners or {}
+WoWAIForever.skippedEvents = WoWAIForever.skippedEvents or {}
 function WoWAIForever.On(name, fn)
 	if type(name) ~= "string" or type(fn) ~= "function" then return end
 	local list = WoWAIForever.listeners[name] or {}
@@ -24,7 +25,11 @@ end
 function WoWAIForever.Register(mod)
 	if type(mod) ~= "table" then return end
 	table.insert(WoWAIForever.modules, mod)
-	for key, value in pairs(mod.events or {}) do frame:RegisterEvent(type(key) == "number" and value or key) end
+	-- An event this client lacks (retail-only AH events on Forever) errors in RegisterEvent; skip it, keep the rest.
+	for key, value in pairs(mod.events or {}) do
+		local event = type(key) == "number" and value or key
+		if not pcall(frame.RegisterEvent, frame, event) then WoWAIForever.skippedEvents[event] = true end
+	end
 end
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:SetScript("OnEvent", function(_, event, ...)

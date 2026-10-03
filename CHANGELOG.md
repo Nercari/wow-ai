@@ -13,6 +13,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- A Lua error on login on the Forever client (`Forever.lua:27 in function 'Register'`): the auction house module asked for retail-only search events the client does not have. Events a client lacks are now skipped (listed in `WoWAIForever.skippedEvents`) and every other event still registers.
+
 - Professions in the game context were always empty on Forever: the client only has `C_SkillInfo` (one table per skill line), not the classic `GetNumSkillLines`/`GetSkillLineInfo` globals, which stay as fallback. Child lines that repeat their parent are skipped.
 
 ## [0.4.0] - 2026-09-24
