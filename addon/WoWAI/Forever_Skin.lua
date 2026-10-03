@@ -118,7 +118,10 @@ local minimapButton
 local function PositionButton()
 	local angle = math.rad(DB().minimapAngle or 200)
 	-- On the rim whatever the minimap's size (a 140px minimap gives the old 80).
-	local radius = (type(Minimap.GetWidth) == "function" and Minimap:GetWidth() or 140) / 2 + 10
+	local width = type(Minimap.GetWidth) == "function" and Minimap:GetWidth() or 0
+	-- The minimap can report no size yet at login; fall back to the default 140.
+	if width < 50 then width = 140 end
+	local radius = width / 2 + 10
 	minimapButton:ClearAllPoints()
 	minimapButton:SetPoint("CENTER", Minimap, "CENTER",
 		math.cos(angle) * radius, math.sin(angle) * radius)

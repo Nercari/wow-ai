@@ -93,6 +93,9 @@ test('the minimap button sits on the rim at any minimap size', () => {
   assert.ok(Math.abs(radiusOf() - 110) < 1e-6);
   v.run('Minimap.width = 100; WoWAIForeverMinimap.scripts.OnShow(WoWAIForeverMinimap)');
   assert.ok(Math.abs(radiusOf() - 60) < 1e-6);
+  // A minimap that reports no size yet (early at login) falls back to the default rim.
+  v.run('Minimap.width = 0; WoWAIForeverMinimap.scripts.OnShow(WoWAIForeverMinimap)');
+  assert.ok(Math.abs(radiusOf() - 80) < 1e-6);
   // Dragging re-places it on the rim of the current size, at the saved angle.
   v.run('Minimap.width = 200; WoWAIForeverMinimap.x = 0; WoWAIForeverMinimap.y = 20; WoWAIForeverMinimap.scripts.OnDragStop(WoWAIForeverMinimap)');
   assert.ok(Math.abs(radiusOf() - 110) < 1e-6);
