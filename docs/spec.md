@@ -39,7 +39,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 22. **Death recap** (from Details! and Blizzard's death recap; see `docs/similar-addons-2026-10-03.md`). Recap lines at the top of `.death.txt` (done, PR #6).
 23. **Health before each hit.** Add the player's health before each hit and the overkill of the killing blow to the death recap, read from the advanced log block. Needs a real Forever log with advanced logging (item 1) to confirm the field layout.
 24. **Death file shows only incoming lines** (done, PR #9). `.death.txt` also lists hits the player dealt (the destination test matches the player as source). Small fix with a real-format test fixture.
-25. **Warlock rubric** (from WoWAnalyzer's per-spec checklists). `mentor/rubrics/warlock.md` with uptime, cooldown and idle-time checks the mentor can prove from a log slice, every rule cited. Other classes later.
+25. **Warlock rubric** (done, PR #10) (from WoWAnalyzer's per-spec checklists). `mentor/rubrics/warlock.md` with uptime, cooldown and idle-time checks the mentor can prove from a log slice, every rule cited. Other classes later.
 26. **Dummy practice compare** (from Localog). `cmd=practice`: review two target-dummy sessions and compare active time and damage from their scorecard rows.
 
 Add new items at the end with the next number; mark done items `(done, PR #n)` instead of deleting them.
