@@ -728,6 +728,39 @@ test('the Clear button needs a second click ("Sure?") within 3 seconds, resets b
   assert.equal(vm.evaluate('GameTooltip.shown'), 'false');
 });
 
+test('the transcript keeps a scrolled-up position on resize and status refresh, and follows the bottom otherwise', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('WoWAI.Toggle(true)');
+  const scrolled = () => vm.num('WoWAIScroll:GetVerticalScroll()');
+  const settle = () => vm.run('STUB.RunTimers()');
+  const chatAddHistory = (text) => vm.run(`WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "${text}")`);
+  vm.run('WoWAIScroll.vrange = 500');
+  vm.run('WoWAI.Render()'); settle();
+  assert.equal(scrolled(), 500, 'a fresh render starts at the bottom');
+  // The player scrolls up to read; a refresh and a resize leave the position alone.
+  vm.run('WoWAIScroll:SetVerticalScroll(200)');
+  vm.run('WoWAI.Render()'); settle();
+  assert.equal(scrolled(), 200, 'status refresh does not yank the player down');
+  vm.run('WoWAIScroll.vrange = 450; WoWAIScroll.hooks.OnSizeChanged[1](WoWAIScroll, 500, 300)'); settle();
+  assert.equal(scrolled(), 200, 'resize keeps the position');
+  vm.run('WoWAIScroll.vrange = 100'); vm.run('WoWAI.Render()'); settle();
+  assert.equal(scrolled(), 100, 'a position past the new end is clamped, not lost');
+  // A new message brings the view to the bottom.
+  vm.run('WoWAIScroll.vrange = 500; WoWAIScroll:SetVerticalScroll(50)');
+  chatAddHistory('hello'); vm.run('WoWAI.Render()'); settle();
+  assert.equal(scrolled(), 500, 'a new message scrolls to the bottom');
+  // At the bottom the view keeps following the content as it grows (or the window changes).
+  vm.run('WoWAIScroll.vrange = 700'); vm.run('WoWAI.Render()'); settle();
+  assert.equal(scrolled(), 700, 'at the bottom, growth is followed');
+  // Switching chat starts that chat at the bottom, even from a scrolled-up spot.
+  vm.run('WoWAIScroll:SetVerticalScroll(10)');
+  vm.run('SlashCmdList.WOWAI("new Other")'); vm.run('STUB.RunTimers()');
+  vm.run('WoWAIScroll:SetVerticalScroll(10)');
+  vm.run('WoWAI.SwitchChat(WoWAIDB.chats[1].id)'); settle();
+  assert.equal(scrolled(), 700, 'switching chat goes to the bottom');
+});
+
 test('chat rows: right-click opens a menu that renames or sets the folder of that chat, the trash can asks before deleting', () => {
   const vm = newVM();
   login(vm);
