@@ -14,6 +14,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- A permission request is one short line (the first action, cut to its first line, plus a count) instead of the raw command, which printed seven lines of PowerShell into the game chat. The Allow button still lists every rule it grants.
 - A `/wow-ai reload` asked for during combat no longer calls `ReloadUI()` when combat ends (the game blocks it outside a keypress or click and blamed the addon); it reloads on your first keypress after combat.
 
 ### Added
