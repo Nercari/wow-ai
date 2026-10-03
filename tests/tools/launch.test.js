@@ -156,7 +156,7 @@ test("update: an untracked file that blocks the switch is named, and nothing mov
   fs.writeFileSync(path.join(player, "README.md"), "my notes\n");
   const r = update(player);
   assert.equal(r.changed, false);
-  assert.match(r.note, /could not switch to forever \(.*README\.md/s);
+  assert.match(r.note, /could not update \(.*README\.md/s);
   assert.equal(git(player, "branch", "--show-current"), "agent-work");
   assert.equal(fs.readFileSync(path.join(player, "README.md"), "utf8"), "my notes\n");
 });
@@ -174,16 +174,31 @@ test("update: commits on no branch are not left behind", (t) => {
   assert.equal(git(player, "rev-parse", "HEAD"), head);
 });
 
-test("update: switched but the fast-forward failed still lists what the switch changed", (t) => {
+test("update: a file in the way of the new release leaves the folder exactly where it was", (t) => {
+  // Cursor re-review of #34: switching first and fast-forwarding second left
+  // the folder on the old forever when the second step was refused.
   const { dev, player } = repos(t);
   onAgentBranch(player);
   commit(dev, "new.txt", "release\n");
-  fs.writeFileSync(path.join(player, "new.txt"), "mine\n"); // untracked, blocks the fast-forward only
+  fs.writeFileSync(path.join(player, "new.txt"), "mine\n");
+  const forever = git(player, "rev-parse", "forever");
+  const r = update(player);
+  assert.deepEqual([r.changed, r.files], [false, []]);
+  assert.match(r.note, /could not update \(.*new\.txt/s);
+  assert.equal(git(player, "branch", "--show-current"), "agent-work");
+  assert.equal(git(player, "rev-parse", "forever"), forever);
+  assert.equal(fs.readFileSync(path.join(player, "bridge.js"), "utf8").replace(/\r\n/g, "\n"), "agent\n");
+  assert.equal(fs.readFileSync(path.join(player, "new.txt"), "utf8"), "mine\n");
+});
+
+test("update: a detached commit that a branch holds is switched to the release", (t) => {
+  const { player } = repos(t);
+  onAgentBranch(player);
+  git(player, "switch", "-q", "--detach", "agent-work");
   const r = update(player);
   assert.equal(git(player, "branch", "--show-current"), "forever");
-  assert.match(r.note, /could not update/);
-  assert.deepEqual([r.changed, r.files], [true, ["bridge.js"]]);
-  assert.equal(fs.readFileSync(path.join(player, "new.txt"), "utf8"), "mine\n");
+  assert.deepEqual(r.files, ["bridge.js"]);
+  assert.match(r.note, /switched from "a detached commit" to forever/);
 });
 
 test("update: no local forever and two remotes that have one: forever is made from origin", (t) => {

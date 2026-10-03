@@ -70,22 +70,27 @@ function update(root) {
     return keep(`your ${RELEASE_BRANCH} branch has changes of its own that are not in the release; not updated`);
   }
   const branch = git('branch', '--show-current').out;
-  // Commits made on no branch would only be left in the reflog.
-  if (!branch && !git('merge-base', '--is-ancestor', head.out, release).ok) {
+  // A detached commit that no branch holds would only be left in the reflog.
+  if (!branch && !git('merge-base', '--is-ancestor', head.out, release).ok &&
+      !git('for-each-ref', '--contains', head.out, 'refs/heads').out) {
     return keep(`this folder is on commit ${head.out.slice(0, 7)}, which no branch holds; not updated`);
   }
-  let switched = '';
-  if (branch !== RELEASE_BRANCH) {
-    const sw = local.ok ? git('switch', '--quiet', RELEASE_BRANCH) : git('switch', '--quiet', '-c', RELEASE_BRANCH, release);
-    if (!sw.ok) return keep(`this folder is on "${branch || 'no branch'}" and could not switch to ${RELEASE_BRANCH} (${why(sw)}); not updated`);
-    if (!local.ok) git('branch', '--quiet', `--set-upstream-to=${remote}/${RELEASE_BRANCH}`);
-    switched = ` (switched from "${branch || 'no branch'}" to ${RELEASE_BRANCH}; that branch is kept)`;
+  let switched = '', moved;
+  if (branch === RELEASE_BRANCH) {
+    moved = git('merge', '--ff-only', '--quiet', release);
+  } else {
+    // One checkout straight to the release: the local release branch (an
+    // ancestor, checked above) is moved up to it in the same step, so a
+    // refused checkout leaves the folder exactly where it was.
+    moved = git('switch', '--quiet', '-C', RELEASE_BRANCH, release);
+    if (moved.ok) {
+      git('branch', '--quiet', `--set-upstream-to=${remote}/${RELEASE_BRANCH}`);
+      switched = ` (switched from "${branch || 'a detached commit'}" to ${RELEASE_BRANCH}; ${branch ? 'that branch is' : 'its commits are'} kept)`;
+    }
   }
-  const ff = git('merge', '--ff-only', '--quiet', release);
+  if (!moved.ok) return keep(`could not update (${why(moved)}); using the version you have`);
   const after = git('rev-parse', 'HEAD').out;
   const files = after === head.out ? [] : lines(git('diff', '--name-only', head.out, after));
-  // Switched but not fast-forwarded: still report what the switch changed.
-  if (!ff.ok) return { changed: files.length > 0, files, note: `could not update (${why(ff)})${switched}` };
   if (!files.length) return { changed: false, files, note: `already up to date${switched}` };
   return { changed: true, files, note: `updated to the latest release (${files.length} file${files.length === 1 ? '' : 's'} changed)${switched}` };
 }
