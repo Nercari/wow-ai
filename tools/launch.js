@@ -25,6 +25,7 @@ const ADDON_SRC = path.join(ROOT, 'addon', 'WoWAI');
 const CONFIG = path.join(BRIDGE, 'config.json');
 const SHORTCUT_MARK = path.join(BRIDGE, '.shortcut-made');
 const WIN = process.platform === 'win32';
+const RELEASE_BRANCH = 'forever';
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true, timeout: 120000, ...opts });
@@ -41,13 +42,24 @@ function update(root) {
   if (!head.ok) return { changed: false, files: [], note: 'git could not read this checkout; skipping the update' };
   const dirty = git('status', '--porcelain', '--untracked-files=no');
   if (dirty.out) return { changed: false, files: [], note: 'this folder has local edits, so it was not updated (nothing was changed)' };
+  // The player runs the released version: a clean checkout left on another
+  // branch (an agent's work branch) goes back to forever. That branch is kept.
+  let switched = '';
+  const branch = git('branch', '--show-current').out;
+  if (branch !== RELEASE_BRANCH) {
+    if (!git('switch', '--quiet', RELEASE_BRANCH).ok) return { changed: false, files: [], note: `this folder is on "${branch || 'no branch'}" and could not switch to ${RELEASE_BRANCH}; not updated` };
+    switched = ` (switched from "${branch || 'no branch'}" to ${RELEASE_BRANCH})`;
+  }
   const pull = git('pull', '--ff-only', '--quiet');
-  if (!pull.ok) return { changed: false, files: [], note: `could not update (${(pull.err.split('\n')[0] || 'no network?')}); using the version you have` };
+  if (!pull.ok) {
+    const files = switched ? git('diff', '--name-only', head.out, 'HEAD').out.split('\n').filter(Boolean) : [];
+    return { changed: files.length > 0, files, note: `could not update (${(pull.err.split('\n')[0] || 'no network?')}); using the version you have${switched}` };
+  }
   const after = git('rev-parse', 'HEAD').out;
-  if (after === head.out) return { changed: false, files: [], note: 'already up to date' };
+  if (after === head.out) return { changed: false, files: [], note: `already up to date${switched}` };
   const files = git('diff', '--name-only', head.out, after).out.split('\n').filter(Boolean);
   const log = git('log', '--oneline', `${head.out}..${after}`).out.split('\n').filter(Boolean);
-  return { changed: true, files, note: `updated (${log.length} change${log.length === 1 ? '' : 's'})` };
+  return { changed: true, files, note: `updated (${log.length} change${log.length === 1 ? '' : 's'})${switched}` };
 }
 
 // True when an installed addon file is missing or differs from the repo copy.

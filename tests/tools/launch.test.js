@@ -89,6 +89,31 @@ test("update: a diverged checkout is not merged", (t) => {
   assert.equal(git(player, "rev-parse", "HEAD"), before);
 });
 
+test("update: a clean checkout left on another branch goes back to forever and updates", (t) => {
+  const { dev, player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  fs.writeFileSync(path.join(player, "notes.md"), "agent\n");
+  git(player, "add", "-A");
+  git(player, "commit", "-q", "-m", "agent work");
+  commit(dev, "bridge/bridge.js", "x\n");
+  const r = update(player);
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+  assert.equal(r.changed, true);
+  assert.ok(r.files.includes("bridge/bridge.js"));
+  assert.match(r.note, /switched from "agent-work" to forever/);
+  // The other branch and its commit are kept.
+  assert.equal(git(player, "log", "-1", "--format=%s", "agent-work"), "agent work");
+});
+
+test("update: another branch with local edits is not switched", (t) => {
+  const { player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  fs.writeFileSync(path.join(player, "README.md"), "edit\n");
+  const r = update(player);
+  assert.equal(git(player, "branch", "--show-current"), "agent-work");
+  assert.match(r.note, /local edits/);
+});
+
 test("update: a folder that is not a git checkout is skipped", (t) => {
   const r = update(tmp(t));
   assert.equal(r.changed, false);
