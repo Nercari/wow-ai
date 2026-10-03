@@ -1972,10 +1972,36 @@ function WoWAI.ShowCopy(text)
 	ui.copyBox:HighlightText()
 end
 
+-- Rows start 36px below the panel top (New chat button and gap), 21px apart,
+-- and the last must end above the panel's bottom edge.
+local CHAT_ROW_TOP, CHAT_ROW_STEP = 36, 21
+
+local function ChatRowsFit()
+	local h = ui.chatPanel and ui.chatPanel:GetHeight() or 0
+	local n = math.floor((h - 4 - CHAT_ROW_TOP - 20) / CHAT_ROW_STEP) + 1
+	return math.max(1, math.min(MAX_CHATS, n))
+end
+
 function WoWAI.RenderChatList()
 	if not ui.chatButtons then return end
+	local fit = ChatRowsFit()
+	local total = #db.chats
+	local offset = ui.chatOffset or 0
+	-- When the active chat changes, bring it into view; otherwise leave the
+	-- player's wheel position alone.
+	if ui.chatSeenActive ~= db.activeChat then
+		ui.chatSeenActive = db.activeChat
+		for i, c in ipairs(db.chats) do
+			if c.id == db.activeChat then
+				if i <= offset then offset = i - 1 elseif i > offset + fit then offset = i - fit end
+				break
+			end
+		end
+	end
+	offset = math.max(0, math.min(offset, total - fit))
+	ui.chatOffset = offset
 	for i, btn in ipairs(ui.chatButtons) do
-		local c = db.chats[i]
+		local c = i <= fit and db.chats[offset + i] or nil
 		if c then
 			local label = Display(c.name)
 			local folder = FolderName(ChatFolder(c))
@@ -2250,7 +2276,8 @@ local function BuildUI()
 	end)
 
 	-- Left panel: chat list
-	local panel = CreateFrame("Frame", nil, f, "BackdropTemplate")
+	local panel = CreateFrame("Frame", "WoWAIChatPanel", f, "BackdropTemplate")
+	ui.chatPanel = panel
 	panel:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -52)
 	panel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 14, 50)
 	panel:SetWidth(PANEL_W)
@@ -2333,6 +2360,19 @@ local function BuildUI()
 		menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, 2)
 		menu:Show()
 	end
+
+	-- The list shows only the rows that fit the panel (see RenderChatList); the
+	-- wheel moves the window over the chats, and a resize re-fits it.
+	ui.chatOffset = 0
+	panel:EnableMouseWheel(true)
+	panel:SetScript("OnMouseWheel", function(_, delta)
+		ui.chatOffset = (ui.chatOffset or 0) - (delta > 0 and 1 or -1)
+		WoWAI.RenderChatList()
+	end)
+	panel:HookScript("OnSizeChanged", function()
+		ui.chatSeenActive = nil -- re-fit around the active chat
+		WoWAI.RenderChatList()
+	end)
 
 	ui.chatButtons = {}
 	for i = 1, MAX_CHATS do
