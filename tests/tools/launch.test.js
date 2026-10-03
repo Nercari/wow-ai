@@ -60,7 +60,8 @@ test("update: fast-forwards and lists the changed files", (t) => {
   assert.equal(r.changed, true);
   assert.deepEqual(r.files.sort(), ["addon/WoWAI/WoWAI.lua", "bridge/bridge.js"]);
   assert.equal(r.note, "updated (2 changes)");
-  assert.equal(fs.readFileSync(path.join(player, "bridge/bridge.js"), "utf8"), "x\n");
+  // Windows runners check out with core.autocrlf=true.
+  assert.equal(fs.readFileSync(path.join(player, "bridge/bridge.js"), "utf8").replace(/\r\n/g, "\n"), "x\n");
 });
 
 test("update: a checkout with local edits is left exactly as it is", (t) => {
