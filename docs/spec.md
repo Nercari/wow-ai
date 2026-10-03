@@ -13,7 +13,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 5. **Upstream.** Compare with `chelinho139/wow-ai` main; bring in useful upstream fixes by PR, keeping `forever` behaviour.
 6. **Measured improvement.** Each improvement PR names one number (a test count, a gate passed, a failure fixed) before and after.
 
-## Backlog (numbered; next free: 27)
+## Backlog (numbered; next free: 29)
 
 1. **Live gates (WOW-02).** Pedro runs `probe/PROBE.md` on the installed Forever client; agents turn the results into the gate table and switch features to their fallback where a gate fails. Needs Pedro in game.
 2. **Live column.** Fill the Live column of the coverage doc from Pedro's in-game checks, one short checklist per batch.
@@ -41,5 +41,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 24. **Death file shows only incoming lines** (done, PR #9). `.death.txt` also lists hits the player dealt (the destination test matches the player as source). Small fix with a real-format test fixture.
 25. **Warlock rubric** (done, PR #10) (from WoWAnalyzer's per-spec checklists). `mentor/rubrics/warlock.md` with uptime, cooldown and idle-time checks the mentor can prove from a log slice, every rule cited. Other classes later.
 26. **Dummy practice compare** (done, PR #12) (from Localog). `cmd=practice`: review two target-dummy sessions and compare active time and damage from their scorecard rows.
+
+28. **Switch AI and model in game** (PR pending). Pedro asked (2026-10-03) to pick between his available AIs from inside the game. An AI button lists the agents installed on the PC and their models; one click switches the chat. Metric: switching to another model, typed commands and a config edit plus a bridge restart → one click. Live look pending.
 
 Add new items at the end with the next number; mark done items `(done, PR #n)` instead of deleting them.

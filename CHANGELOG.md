@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- **Switch AI and model in game with a click.** An **AI** button under the chat (also **AI / model...** on the chat row's right-click menu) lists the agents installed on your PC and the models each offers, and switches the chat with one click. Agents the PC doesn't have are not listed. Claude offers `opus`, `sonnet` and `haiku`; any agent can offer more with `agents.<id>.models` in `config.json`. A different agent starts a fresh session; a different model of the same agent carries on the conversation. Typed form: `/ai agent claude sonnet`.
+
 ### Changed
 
 - **Copy button per command.** Each slash command line in a reply gets a small "copy: ..." button under the text; it opens the copy box with only that line selected. Script lines and file paths get none. The addon never types or sends the command.
