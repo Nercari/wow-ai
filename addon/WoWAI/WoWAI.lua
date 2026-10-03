@@ -1868,6 +1868,21 @@ function WoWAI.CommandLines(text)
 	return out
 end
 
+-- Four first questions for an empty chat, fitted to the character's class and
+-- level. Clicking one types it into the box; the player presses Enter.
+function WoWAI.StarterQuestions()
+	local class = type(UnitClass) == "function" and UnitClass("player") or nil
+	local level = tonumber(type(UnitLevel) == "function" and UnitLevel("player")) or 1
+	local who = "level " .. level .. " " .. (class or "character")
+	return {
+		"My character: " .. who .. ". What should I focus on right now?",
+		"Which abilities matter most for a " .. (class or "character") .. " at level " .. level .. ", and what is each for?",
+		level < 10 and "I'm new to the game. What should I set up before I go on?"
+			or ("Is my gear fine for level " .. level .. ", and what should I look for next?"),
+		"Where should my " .. who .. " go to level next?",
+	}
+end
+
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
@@ -1880,7 +1895,7 @@ function WoWAI.Render()
 		if not width or width < 80 then width = 400 end
 		ui.content:SetWidth(width)
 		local y, n = 0, 0
-		local function Place(role, text, when, dim, denied, agent)
+		local function Place(role, text, when, dim, denied, agent, starters)
 			n = n + 1
 			local b = GetBubble(n)
 			local st = ROLE_STYLE[role] or ROLE_STYLE.system
@@ -1913,20 +1928,24 @@ function WoWAI.Render()
 			end
 			-- One small copy button per command line of a finished reply: the copy box
 			-- opens with only that line. The player still pastes and sends it.
-			local cmds = (role == "assistant" and not dim) and WoWAI.CommandLines(text) or {}
+			local cmds = starters or ((role == "assistant" and not dim) and WoWAI.CommandLines(text) or {})
 			b.copies = b.copies or {}
 			for k, cmd in ipairs(cmds) do
 				local cb = b.copies[k]
 				if not cb then
 					cb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
 					cb:SetHeight(20)
-					cb:SetScript("OnClick", function(self) WoWAI.ShowCopy(self.line) end)
+					cb:SetScript("OnClick", function(self)
+						if not self.fill then return WoWAI.ShowCopy(self.line) end
+						if ui.input then ui.input:SetText(self.line); ui.input:SetFocus() end
+					end)
 					b.copies[k] = cb
 				end
-				local label = "copy: " .. Display(#cmd > 44 and (cmd:sub(1, 44) .. "...") or cmd)
+				local label = starters and Display(cmd) or ("copy: " .. Display(#cmd > 44 and (cmd:sub(1, 44) .. "...") or cmd))
 				cb:SetText(label)
 				cb:SetWidth(math.min(width - 24, cb:GetFontString():GetStringWidth() + 30))
 				cb.line = cmd
+				cb.fill = starters ~= nil
 				cb:ClearAllPoints()
 				cb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
 				cb:Show()
@@ -1958,7 +1977,7 @@ function WoWAI.Render()
 			elseif not WoWAI.IsConnected() then
 				Place("system", "Not connected to the bridge. Start it (npm start in the wow-ai folder, or wow-ai in your project), then click Connect below.", "", true)
 			else
-				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.", "", true)
+				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterQuestions())
 			end
 		end
 		for i = n + 1, #ui.bubbles do
