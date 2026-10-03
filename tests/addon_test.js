@@ -362,6 +362,7 @@ test('a sent message is encoded on the strip with the chat folder, then a slot r
   // The chat took its title from the first message.
   assert.equal(vm.evaluate('WoWAIDB.chats[1].name'), 'Hello world');
 
+  vm.run('WoWAI.Toggle(false)'); // window closed: the reply is echoed to the game chat
   nextSlot(vm, `{ now = time(), cwd = "C:\\\\proj", replies = { { chat = "${chatId}", id = ${id}, status = "done", text = "hi back", cwd = "x", session = "s" } } }`);
   vm.run('STUB.now = STUB.now + 6; STUB.Tick()'); // first scheduled poll is 5 s after sending
   assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null);
@@ -412,6 +413,24 @@ test('a denied reply shows Allow, and Allow resends with the rules as flags', ()
   assert.equal(rec.id, id + 1);
 });
 
+test('a reply is shown once: no chat echo while its window is open', () => {
+  const vm = newVM();
+  login(vm);
+  connect(vm);
+  vm.run('WoWAI.Toggle(true); WoWAI.Send("hello")');
+  const chatId = vm.evaluate('WoWAIDB.chats[1].id');
+  const reply = (id, text) => `{ now = time(), cwd = "", replies = { { chat = "${chatId}", id = ${id}, status = "done", text = "${text}" } } }`;
+  nextSlot(vm, reply(vm.num('WoWAIDB.chats[1].pendingId'), 'seen in the window'));
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text'), 'seen in the window');
+  assert.ok(!vm.evaluate('table.concat(STUB.prints, "\\n")').includes('seen in the window'), 'window open: not repeated in the game chat');
+
+  vm.run('WoWAI.Toggle(false); WoWAI.Send("again")');
+  nextSlot(vm, reply(vm.num('WoWAIDB.chats[1].pendingId'), 'seen in chat'));
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  assert.ok(vm.evaluate('table.concat(STUB.prints, "\\n")').includes('seen in chat'), 'window closed: echoed to the game chat');
+});
+
 test('a chat can pick its agent: the strip says so, replies are labelled by their writer, unknown names are refused', () => {
   const vm = newVM();
   login(vm);
@@ -430,6 +449,7 @@ test('a chat can pick its agent: the strip says so, replies are labelled by thei
   assert.equal(rec.flags, '');
   assert.equal(vm.evaluate('WoWAIDB.outbox.agent'), null);
   const id = vm.num('WoWAIDB.chats[1].pendingId');
+  vm.run('WoWAI.Toggle(false)'); // window closed: replies are echoed to the game chat
   nextSlot(vm, slot(`{ chat = "${chatId}", id = ${id}, status = "done", text = "hi", agent = "claude" }`));
   vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
   assert.equal(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].role'), 'assistant');
@@ -445,6 +465,7 @@ test('a chat can pick its agent: the strip says so, replies are labelled by thei
   assert.equal(vm.evaluate('WoWAIDB.outbox.agent'), 'codex');
   assert.ok(texts().includes('agent: Codex   mode: pixel'));
   const id2 = vm.num('WoWAIDB.chats[1].pendingId');
+  vm.run('WoWAI.Toggle(false)');
   nextSlot(vm, slot(`{ chat = "${chatId}", id = ${id2}, status = "done", text = "codex here", agent = "codex" }`));
   vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
   assert.equal(vm.evaluate('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].agent'), 'codex');

@@ -2087,8 +2087,9 @@ end
 function WoWAI.Notify(chat, text, agent, summary)
 	pcall(PlaySound, 3081)
 	WoWAI.UpdateMini()
-	EchoToChat(chat, text, agent, summary)
+	-- The player is already reading this chat in the window: show the reply once.
 	if ui.frame and ui.frame:IsShown() and db.activeChat == chat.id then return end
+	EchoToChat(chat, text, agent, summary)
 	if UIErrorsFrame then
 		UIErrorsFrame:AddMessage(ReplyAgentName(chat, agent) .. " replied in " .. Display(chat.name), 0.5, 0.8, 1, 1)
 	end

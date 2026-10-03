@@ -131,8 +131,9 @@ end
 
 local function OnReply(chat, rec)
 	if not rec or type(rec.text) ~= "string" then return end
-	local target = FindTargetChat()
-	local isTranslateChat = (target and chat and chat.id == target.id)
+	-- Only translations open the popup. A plain reply in the mentor chat (where
+	-- translations are sent when no "translate" chat exists) is not one.
+	local isTranslateChat = chat and type(chat.name) == "string" and chat.name:lower() == "translate"
 	local isTranslateCmd = (rec.cmd == "translate")
 	if not isTranslateChat and not isTranslateCmd and not rec.text:find("%[translate%]") then
 		return
