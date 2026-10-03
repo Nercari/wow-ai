@@ -80,14 +80,15 @@ function update(root) {
     moved = git('merge', '--ff-only', '--quiet', release);
   } else {
     // switch -C would move a forever checked out in another worktree under it.
-    // Entries whose folder was deleted ("prunable") don't count.
+    // Entries whose folder was deleted ("prunable") don't count; newer git still
+    // refuses those, hence --ignore-other-worktrees below.
     const elsewhere = git('worktree', 'list', '--porcelain').out.split('\n\n')
       .some(w => w.split('\n').includes(`branch refs/heads/${RELEASE_BRANCH}`) && !/^prunable/m.test(w));
     if (elsewhere) return keep(`${RELEASE_BRANCH} is open in another folder (a git worktree); not updated`);
     // One checkout straight to the release: the local release branch (an
     // ancestor, checked above) is moved up to it in the same step, so a
     // refused checkout leaves the folder exactly where it was.
-    moved = git('switch', '--quiet', '-C', RELEASE_BRANCH, release);
+    moved = git('switch', '--quiet', '--ignore-other-worktrees', '-C', RELEASE_BRANCH, release);
     if (git('branch', '--show-current').out === RELEASE_BRANCH) {
       git('branch', '--quiet', `--set-upstream-to=${remote}/${RELEASE_BRANCH}`);
       switched = ` (switched from "${branch || 'a detached commit'}" to ${RELEASE_BRANCH}; ${branch ? 'that branch is' : 'its commits are'} kept)`;
