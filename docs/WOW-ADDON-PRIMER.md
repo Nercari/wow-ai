@@ -5,7 +5,7 @@ Read by the wow-ai bridge and appended to the agent's system prompt on every run
 ## The client
 
 - World of Warcraft: Forever is vanilla content on the current retail engine and UI code (the `Mainline` files, with 12.x-era deprecation shims). Interface number 16001 (client 1.60.x). Lua 5.1.
-- Blizzard's own UI code for this client is the `forever` branch of https://github.com/Gethe/wow-ui-source. When unsure whether a function, frame template or global exists, check there.
+- Blizzard's own UI code for this client is the `forever` branch of https://github.com/Gethe/wow-ui-source. When unsure whether a function, frame template or global exists, check there, or in game: `/dump type(SomeFunction)`, `/run print(GetBuildInfo())`.
 - Use the modern `C_` namespaces; many old globals are gone or only exist as temporary shims: `C_Item.GetItemInfo` (not `GetItemInfo`), `C_Spell.GetSpellInfo` / `C_Spell.GetSpellCooldown` (return tables, not multiple values), `C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")` (not `UnitBuff`), `C_Container.GetContainerNumSlots` / `GetContainerItemInfo` (returns a table), `C_AddOns`, `C_Timer`, `C_Map`. Write a fallback only if you have confirmed the old name exists: `local f = (C_Item and C_Item.GetItemInfo) or GetItemInfo`. Vanilla-era systems (talent tabs, skill lines, weapon skills) keep the classic functions: `GetTalentTabInfo`, `GetTalentInfo(tab, i)`, `GetNumSkillLines`, `GetSkillLineInfo(i)`; verify in game.
 - Beta quirk: the client sometimes wipes addon SavedVariables. Do not keep anything irreplaceable only there.
 
@@ -60,11 +60,11 @@ SLASH_MYADDON1 = "/myaddon"; SlashCmdList.MYADDON = function(msg) end
 
 ## Macros
 
-- 255 characters, one action per hardware press. `#showtooltip`, `/cast Spell`, `/use Item`, `/castsequence reset=combat A, B`, `/target`, `/focus`, `/cancelaura`, `/stopcasting`, `/equip`. No `/run` or `/script` in macros.
+- 255 characters, one action per hardware press. `#showtooltip`, `/cast Spell`, `/use Item`, `/castsequence reset=combat A, B`, `/target`, `/focus`, `/cancelaura`, `/stopcasting`, `/equip`, `/run <lua>`.
 - Conditionals: `[mod:shift]`, `[combat]`, `[harm]`/`[help]`, `[dead]`, `[exists]`, `[stance:1]`, `[@target]`/`[@mouseover]`/`[@player]`, `[nopet]`; combine with commas, separate alternatives with semicolons: `/cast [mod:alt,@player] Heal; [help] Heal; Attack`.
 - Spell and item names are localized and must match exactly; ranks as `Spell(Rank 2)`.
 
 ## Debugging in game
 
-- `/reload` after editing Lua; `/etrace` to watch events; `/fstack` to find the frame under the mouse. Never give the player `/run`, `/script`, `/console` or `/dump` lines to paste: put the check in the addon's own code, and give settings as menu paths.
+- `/reload` after editing Lua; `/console scriptErrors 1` to see Lua errors; `/dump expr` to print a value; `/etrace` to watch events; `/fstack` to find the frame under the mouse; `/run` for one-liners.
 - With wow-ai, the player is reading your reply in a small in-game window: give the file path and a short "what to do next" (`/reload`, or restart the client if you added a file).

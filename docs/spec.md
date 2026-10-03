@@ -25,7 +25,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 8. **Mentor workspace by default** (done, PR #13). The bridge started in Documents, so the agent ran as a general coding assistant and read unrelated files (0:00, 2:25, 2:55, 6:45). Start in the mentor workspace by default and warn in the window when the folder is a broad one like Documents. Metric: unrelated files read, 3+ in the video, target 0.
 9. **Permission text in game chat** (done, PR #11). A permission request prints the raw command in chat, seven lines of PowerShell (2:55, 5:55, 6:20). Show one short line instead. Metric: chat lines per request 7 → 1.
 10. **"Blocked from an action only available to the Blizzard UI" popup** (8:00), right after pasting the agent's `/run` settings line. Cause not confirmed. Needs Pedro in game: paste the first `/run` line again out of combat and report whether the popup returns. Related to item 1.
-11. **No untested `/run` scripts from the mentor** (done, PR #15). The mentor handed out untested scripts, including key rebinding (4:55, 8:15). It should point to the game menus (Options > Keybindings) instead. Fix in the mentor prompt. Related to item 5.
+11. **No untested `/run` scripts from the mentor.** The mentor handed out untested scripts, including key rebinding (4:55, 8:15). It should point to the game menus (Options > Keybindings) instead. Fix in the mentor prompt. Related to item 5.
 12. **Status line while waiting.** Two different timers ("running 25s" and "running 17s", 0:45) and "0 actions" while six are listed (2:25). Show one timer and the right count.
 13. **Reply popup covers the quest tracker** and stays up for minutes (2:55 to 4:50, 6:45 to 7:40); it also opens with a blank gap at the top. Close it by itself or keep it clear of the tracker.
 14. **Same reply shown three times** (window, chat, popup) even with the window open (0:00). Show it once when the window is open.
@@ -33,7 +33,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 16. **Footer looks crossed out and the title runs into the frame border** (all video). Fix the layout.
 17. **Window opens on top of the game chat** by default (0:00, 5:10). Pick a default position clear of the chat.
 18. **Copy button per command line.** A small [copy] link next to each command opens the copy box with only that line (7:45).
-19. **Settings as a menu checklist** (done, PR #15). The mentor gives settings as menu paths the player ticks ("Options > Controls > Auto Loot: on") instead of scripts. Avoids the popups at 7:55 and 8:00. Builds on item 11.
+19. **Settings as a menu checklist.** The mentor gives settings as menu paths the player ticks ("Options > Controls > Auto Loot: on") instead of scripts. Avoids the popups at 7:55 and 8:00. Builds on item 11.
 20. **Starter questions for a new character.** A first-run card with four questions fitted to class and level (0:00).
 21. **Level-up nudge.** After the fight in which the player levels up, offer "what changes at this level?" (6:20). Out of combat only; extends the level re-run from WOW-11.
 22. **Death recap** (from Details! and Blizzard's death recap; see `docs/similar-addons-2026-10-03.md`). Recap lines at the top of `.death.txt` (done, PR #6).

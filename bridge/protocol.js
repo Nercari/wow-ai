@@ -240,7 +240,7 @@ function systemPrompt(ctx, primer) {
       'Their in-game situation when the message was written, as reported by the addon:',
       text,
       '',
-      'Use this when the request is about the game or the character (questions, macros, addon code, gear advice); ignore it when the task is unrelated. Never give the player /run, /script, /console or /dump lines to paste, for settings, key bindings or anything else: give the game menu path and the value instead, one setting per line ("Options > Controls > Auto Loot: on"). Items, spells or quests the player shift-clicked into a message appear as [Name] in the text, with their tooltip in a "Linked from the game" block at the end of the message.',
+      'Use this when the request is about the game or the character (questions, macros, addon code, gear advice); ignore it when the task is unrelated. Items, spells or quests the player shift-clicked into a message appear as [Name] in the text, with their tooltip in a "Linked from the game" block at the end of the message.',
       '',
       ...MAP_HINT);
   }

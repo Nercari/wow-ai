@@ -6,7 +6,6 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
-- **The mentor no longer hands out scripts to paste.** It gives settings and key bindings as game menu paths, one per line ("Options > Controls > Auto Loot: on"), never `/run`, `/script`, `/console` or `/dump` lines. The rule is in the mentor prompt and in the system prompt of every game chat. In the 2026-10-03 video it handed out untested scripts, one followed by the game's "blocked action" popup.
 - **Chats start in the mentor workspace by default.** With no folder chosen, or when the start folder or `defaultCwd` is a broad one (Documents, Desktop, Downloads, your home folder, a drive root), the bridge now works in `wow-mentor` next to the repo and creates it from the `mentor/` template on first use. Before, a bridge started in Documents ran the agent as a general coding assistant that read unrelated files. A broad folder named on purpose still works and adds a one-line warning to each reply. `node setup.js` leaves `defaultCwd` empty unless you pass `--project`.
 - **Blizzard policy compliance is a permanent rule** (`AGENTS.md`, `docs/COMPLIANCE.md`). Safety CI enforces more of it: replacing a Blizzard function or a method on a Blizzard frame fails as `LUA-TAINT`, donation or advertising text in addon files fails as `POLICY-SOLICIT` (UI add-on policy rules 4 and 5), and auction, trade, targeting and item-use calls join the protected-automation list.
 

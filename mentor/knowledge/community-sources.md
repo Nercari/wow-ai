@@ -182,7 +182,7 @@ Sourcing note: **Reddit was inaccessible this session** — both the WebFetch to
 1. **Quest green-level content, not yellow/orange** — Classic's hit-chance math punishes fighting above your level; detour to a second starting zone (example given: Human finishes Elwynn → go to Dun Morogh, not Westfall) rather than out-leveling-fighting a zone.
 2. **Use consumables when you need them, don't hoard them** — most deaths happen with unused potions/bandages still in the bag.
 3. **Prioritize weapon upgrades over other gear** — faster kills mean less exposure time per fight.
-4. **Zoom the camera out** (set the camera distance to its maximum in the game's Options) to see incoming pulls before they're on top of you.
+4. **Zoom the camera out** (`/console cameraDistanceMaxZoomFactor 3.9`) to see incoming pulls before they're on top of you.
 5. **Caster-type "green" mobs are disproportionately deadly** — Defias Pillagers (level 14) are named as the single highest-kill-count mob in Classic; use line-of-sight against casters.
 6. **Enable enemy nameplates** (Interface → Names → Always Show Nameplates) to avoid ambush.
 7. **Spend money deliberately** — in Solo-Self-Found economies, gold is scarce; only train spell ranks you'll actually use.
