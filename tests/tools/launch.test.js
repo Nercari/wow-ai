@@ -59,7 +59,7 @@ test("update: fast-forwards and lists the changed files", (t) => {
   const r = update(player);
   assert.equal(r.changed, true);
   assert.deepEqual(r.files.sort(), ["addon/WoWAI/WoWAI.lua", "bridge/bridge.js"]);
-  assert.equal(r.note, "updated (2 changes)");
+  assert.equal(r.note, "updated to the latest release (2 files changed)");
   // Windows runners check out with core.autocrlf=true.
   assert.equal(fs.readFileSync(path.join(player, "bridge/bridge.js"), "utf8").replace(/\r\n/g, "\n"), "x\n");
 });
@@ -85,7 +85,7 @@ test("update: a diverged checkout is not merged", (t) => {
   const before = git(player, "rev-parse", "HEAD");
   const r = update(player);
   assert.equal(r.changed, false);
-  assert.match(r.note, /could not update/);
+  assert.match(r.note, /changes of its own/);
   assert.equal(git(player, "rev-parse", "HEAD"), before);
 });
 
@@ -101,8 +101,78 @@ test("update: a clean checkout left on another branch goes back to forever and u
   assert.equal(r.changed, true);
   assert.ok(r.files.includes("bridge/bridge.js"));
   assert.match(r.note, /switched from "agent-work" to forever/);
+  assert.equal(git(player, "rev-parse", "HEAD"), git(dev, "rev-parse", "HEAD"), "on the release commit");
+  assert.equal(fs.existsSync(path.join(player, "notes.md")), false);
   // The other branch and its commit are kept.
   assert.equal(git(player, "log", "-1", "--format=%s", "agent-work"), "agent work");
+});
+
+// Cases from the Cursor review of #34.
+function onAgentBranch(player) {
+  git(player, "switch", "-q", "-c", "agent-work");
+  fs.writeFileSync(path.join(player, "bridge.js"), "agent\n");
+  git(player, "add", "-A");
+  git(player, "commit", "-q", "-m", "agent work");
+}
+
+test("update: a failed fetch switches nothing", (t) => {
+  const { player } = repos(t);
+  onAgentBranch(player);
+  git(player, "remote", "set-url", "origin", path.join(path.dirname(player), "missing.git"));
+  const r = update(player);
+  assert.deepEqual([r.changed, r.files], [false, []]);
+  assert.match(r.note, /could not update/);
+  assert.equal(git(player, "branch", "--show-current"), "agent-work");
+  assert.equal(fs.readFileSync(path.join(player, "bridge.js"), "utf8").replace(/\r\n/g, "\n"), "agent\n");
+});
+
+test("update: a local forever with unpushed commits is not switched to or reported as an update", (t) => {
+  const { player } = repos(t);
+  fs.writeFileSync(path.join(player, "local.txt"), "unpushed\n");
+  git(player, "add", "-A");
+  git(player, "commit", "-q", "-m", "unpushed");
+  git(player, "switch", "-q", "-c", "agent-work", "origin/forever");
+  const r = update(player);
+  assert.deepEqual([r.changed, r.files], [false, []]);
+  assert.match(r.note, /changes of its own/);
+  assert.equal(git(player, "branch", "--show-current"), "agent-work");
+});
+
+test("update: leaving a branch that is ahead of the release lists the files that went back", (t) => {
+  const { player } = repos(t);
+  onAgentBranch(player);
+  const r = update(player);
+  assert.equal(r.changed, true);
+  assert.deepEqual(r.files, ["bridge.js"]);
+  assert.equal(r.note, 'updated to the latest release (1 file changed) (switched from "agent-work" to forever; that branch is kept)');
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+});
+
+test("update: an untracked file that blocks the switch is named, and nothing moves", (t) => {
+  const { player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  git(player, "rm", "-q", "README.md");
+  git(player, "commit", "-q", "-m", "drop readme");
+  fs.writeFileSync(path.join(player, "README.md"), "my notes\n");
+  const r = update(player);
+  assert.equal(r.changed, false);
+  assert.match(r.note, /could not switch to forever \(.*README\.md/s);
+  assert.equal(git(player, "branch", "--show-current"), "agent-work");
+  assert.equal(fs.readFileSync(path.join(player, "README.md"), "utf8"), "my notes\n");
+});
+
+test("update: no local forever and two remotes that have one: forever is made from origin", (t) => {
+  const { dev, player } = repos(t);
+  git(player, "remote", "add", "upstream", git(player, "remote", "get-url", "origin"));
+  git(player, "fetch", "-q", "upstream");
+  git(player, "switch", "-q", "-c", "docs/no-console");
+  git(player, "branch", "-q", "-D", "forever");
+  commit(dev, "bridge/bridge.js", "x\n");
+  const r = update(player);
+  assert.equal(r.changed, true);
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+  assert.equal(git(player, "rev-parse", "HEAD"), git(dev, "rev-parse", "HEAD"));
+  assert.equal(git(player, "rev-parse", "--abbrev-ref", "forever@{upstream}"), "origin/forever");
 });
 
 test("update: another branch with local edits is not switched", (t) => {

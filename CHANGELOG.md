@@ -6,7 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
-- **One double-click to update and start (Windows).** `WoW AI.cmd` in the repo folder, and the **WoW AI** desktop icon its first run creates, update the checkout (fast-forward only, skipped with local edits; a clean checkout on another branch goes back to `forever` first, keeping that branch), re-install the addon, start or restart the bridge in a minimized window, and say whether the game needs `/reload`, a relaunch, or nothing. With the game closed it opens the Battle.net app; it never starts the game itself. `bridge\stop-bridge.ps1 -ListOnly` lists the running bridge without stopping it, and `bridge\start-window.cmd` starts the bridge by full path so the stop script finds it.
+- **One double-click to update and start (Windows).** `WoW AI.cmd` in the repo folder, and the **WoW AI** desktop icon its first run creates, update the checkout to the released `forever` (fast-forward only; skipped with local edits or when the local `forever` has commits of its own; a clean checkout on another branch is switched to `forever` only once the fetch worked, keeping that branch), re-install the addon, start or restart the bridge in a minimized window, and say whether the game needs `/reload`, a relaunch, or nothing. With the game closed it opens the Battle.net app; it never starts the game itself. `bridge\stop-bridge.ps1 -ListOnly` lists the running bridge without stopping it, and `bridge\start-window.cmd` starts the bridge by full path so the stop script finds it.
 
 ### Changed
 

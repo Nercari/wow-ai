@@ -5,8 +5,9 @@
 //
 //   node tools/launch.js [--no-update] [--no-shortcut]
 //
-// 1. Update: a fast-forward `git pull` when the checkout has no local edits.
-//    No network, no git, or local edits: it says so and carries on.
+// 1. Update: fast-forwards a clean checkout to the released forever branch
+//    (see update()). No network, no git, or local edits: it says so and
+//    carries on with what is there.
 // 2. Install: runs setup.js (safe to re-run; keeps config.json and the slots).
 // 3. Bridge: starts it in its own minimized window, or restarts it when the
 //    update changed its code. Left alone when it is running and up to date.
@@ -32,34 +33,57 @@ function run(cmd, args, opts = {}) {
   return { ok: !r.error && r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim(), missing: r.error?.code === 'ENOENT' };
 }
 
-// Fast-forward only, and only on a clean checkout: never merges, never
-// overwrites a local edit. Returns { changed, files, note }.
+// Brings a clean checkout to the released version (RELEASE_BRANCH on its
+// remote). Fast-forward only: never merges, resets or discards anything; a
+// folder with local edits, or a local release branch with commits of its own,
+// is left as it is. A clean checkout left on another branch (an agent's work
+// branch) is switched to the release branch; that branch is kept. Nothing is
+// switched unless the fetch worked. Returns { changed, files, note }: files are
+// those that differ on disk afterwards.
 function update(root) {
-  const git = (...a) => run('git', ['-C', root, ...a]);
-  if (!fs.existsSync(path.join(root, '.git'))) return { changed: false, files: [], note: 'not a git checkout; skipping the update' };
+  const git = (...a) => run('git', ['-C', root, ...a], { env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
+  const lines = r => r.out.split('\n').filter(Boolean);
+  // git's own reason, without its "hint:" lines; "...overwritten by checkout:"
+  // gets the first file it names.
+  const why = r => {
+    const ls = r.err.split('\n').filter(l => l.trim() && !/^hint:/.test(l));
+    if (!ls.length) return 'no network?';
+    const first = ls[0].replace(/^(fatal|error): /, '');
+    return first.endsWith(':') && ls[1] ? `${first} ${ls[1].trim()}` : first;
+  };
+  const keep = note => ({ changed: false, files: [], note });
+  if (!fs.existsSync(path.join(root, '.git'))) return keep('not a git checkout; skipping the update');
   const head = git('rev-parse', 'HEAD');
-  if (head.missing) return { changed: false, files: [], note: 'git is not installed; skipping the update' };
-  if (!head.ok) return { changed: false, files: [], note: 'git could not read this checkout; skipping the update' };
-  const dirty = git('status', '--porcelain', '--untracked-files=no');
-  if (dirty.out) return { changed: false, files: [], note: 'this folder has local edits, so it was not updated (nothing was changed)' };
-  // The player runs the released version: a clean checkout left on another
-  // branch (an agent's work branch) goes back to forever. That branch is kept.
-  let switched = '';
+  if (head.missing) return keep('git is not installed; skipping the update');
+  if (!head.ok) return keep('git could not read this checkout; skipping the update');
+  if (git('status', '--porcelain', '--untracked-files=no').out) return keep('this folder has local edits, so it was not updated (nothing was changed)');
+
+  // The remote the local release branch tracks, else origin.
+  const upstream = git('rev-parse', '--abbrev-ref', `${RELEASE_BRANCH}@{upstream}`);
+  const remote = upstream.ok ? upstream.out.split('/')[0] : 'origin';
+  const fetch = git('fetch', '--quiet', remote, RELEASE_BRANCH);
+  if (!fetch.ok) return keep(`could not update (${why(fetch)}); using the version you have`);
+  const release = git('rev-parse', 'FETCH_HEAD').out;
+
+  const local = git('rev-parse', '--verify', '--quiet', `refs/heads/${RELEASE_BRANCH}`);
+  if (local.ok && !git('merge-base', '--is-ancestor', local.out, release).ok) {
+    return keep(`your ${RELEASE_BRANCH} branch has changes of its own that are not in the release; not updated`);
+  }
   const branch = git('branch', '--show-current').out;
+  let switched = '';
   if (branch !== RELEASE_BRANCH) {
-    if (!git('switch', '--quiet', RELEASE_BRANCH).ok) return { changed: false, files: [], note: `this folder is on "${branch || 'no branch'}" and could not switch to ${RELEASE_BRANCH}; not updated` };
-    switched = ` (switched from "${branch || 'no branch'}" to ${RELEASE_BRANCH})`;
+    const sw = local.ok ? git('switch', '--quiet', RELEASE_BRANCH) : git('switch', '--quiet', '-c', RELEASE_BRANCH, release);
+    if (!sw.ok) return keep(`this folder is on "${branch || 'no branch'}" and could not switch to ${RELEASE_BRANCH} (${why(sw)}); not updated`);
+    if (!local.ok) git('branch', '--quiet', `--set-upstream-to=${remote}/${RELEASE_BRANCH}`);
+    switched = ` (switched from "${branch || 'no branch'}" to ${RELEASE_BRANCH}; that branch is kept)`;
   }
-  const pull = git('pull', '--ff-only', '--quiet');
-  if (!pull.ok) {
-    const files = switched ? git('diff', '--name-only', head.out, 'HEAD').out.split('\n').filter(Boolean) : [];
-    return { changed: files.length > 0, files, note: `could not update (${(pull.err.split('\n')[0] || 'no network?')}); using the version you have${switched}` };
-  }
+  const ff = git('merge', '--ff-only', '--quiet', release);
+  if (!ff.ok) return keep(`could not update (${why(ff)})${switched}`);
+
   const after = git('rev-parse', 'HEAD').out;
-  if (after === head.out) return { changed: false, files: [], note: `already up to date${switched}` };
-  const files = git('diff', '--name-only', head.out, after).out.split('\n').filter(Boolean);
-  const log = git('log', '--oneline', `${head.out}..${after}`).out.split('\n').filter(Boolean);
-  return { changed: true, files, note: `updated (${log.length} change${log.length === 1 ? '' : 's'})${switched}` };
+  const files = after === head.out ? [] : lines(git('diff', '--name-only', head.out, after));
+  if (!files.length) return { changed: false, files, note: `already up to date${switched}` };
+  return { changed: true, files, note: `updated to the latest release (${files.length} file${files.length === 1 ? '' : 's'} changed)${switched}` };
 }
 
 // True when an installed addon file is missing or differs from the repo copy.
