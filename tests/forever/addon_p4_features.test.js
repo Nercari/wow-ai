@@ -152,6 +152,9 @@ test('translator never buffers non-opted channels, rate limits <= 1 send per 10s
     WoWAI.Send = function(text, allow, opts)
       STUB.sentMsg = text
       STUB.sentOpts = opts
+      for _, c in ipairs(WoWAIDB.chats) do
+        if c.id == opts.chat then c.pendingId = 7; STUB.target = c end
+      end
     end
   `);
 
@@ -178,14 +181,25 @@ test('translator never buffers non-opted channels, rate limits <= 1 send per 10s
   vm.run('STUB.now = STUB.now + 11; STUB.Tick()');
   assert.ok(vm.evaluate('STUB.sentMsg').includes('Alice: how are you'));
 
+  // A plain reply in the mentor chat is not a translation: no popup.
+  vm.run(`
+    for _, mod in ipairs(WoWAIForever.modules) do
+      if mod.name == "translate" and mod.onReply then
+        mod.onReply(STUB.target, { id = 6, text = "Plain mentor answer." })
+      end
+    end
+  `);
+  assert.equal(vm.evaluate('WoWAITranslateFrame == nil or not WoWAITranslateFrame:IsShown()'), 'true');
+
   // Reply containing fenced reply block pre-fills chat edit box
   vm.run(`
     for _, mod in ipairs(WoWAIForever.modules) do
       if mod.name == "translate" and mod.onReply then
-        mod.onReply({ id = "c1" }, { cmd = "translate", text = "Translation here.\\n\\n\`\`\`reply\\nEstou bem, obrigado!\\n\`\`\`" })
+        mod.onReply(STUB.target, { id = 7, text ="Translation here.\\n\\n\`\`\`reply\\nEstou bem, obrigado!\\n\`\`\`" })
       end
     end
   `);
+  assert.equal(vm.evaluate('WoWAITranslateFrame:IsShown()'), 'true', 'a translation opens the popup');
   assert.equal(vm.num('#STUB.sentTells'), 1);
   assert.equal(vm.evaluate('STUB.sentTells[1]'), 'Alice');
   // Never call SendChatMessage
