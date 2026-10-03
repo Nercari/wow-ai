@@ -173,6 +173,18 @@ test('switch commands and context payload limits', () => {
   }
 });
 
+test('practice sends the default text out of combat and is blocked in combat', () => {
+  const v = setup();
+  v.run('WoWAIDB.chats[1].name = "mentor"; WoWAIDB.activeChat = WoWAIDB.chats[1].id');
+  v.run('STUB.FireEvent("PLAYER_REGEN_DISABLED"); SlashCmdList.WOWAI("practice")');
+  assert.match(v.get('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text'), /AI paused in combat/);
+  assert.equal(records(v).some(record => /dummy/.test(record.text)), false);
+  v.run('WoWAIForever.modules[1].onEvent("PLAYER_REGEN_ENABLED"); WoWAIDB.chats[1].pendingId = nil; SlashCmdList.WOWAI("practice")');
+  const rec = records(v).at(-1);
+  assert.match(rec.flags, /cmd=practice/);
+  assert.equal(rec.text, 'Compare my last two target-dummy sessions.');
+});
+
 test('a reply that lands mid-fight is held and shown once when the fight ends', () => {
   const v = setup();
   v.run('SlashCmdList.WOWAI("hello")');

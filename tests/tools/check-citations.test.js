@@ -195,6 +195,16 @@ test("notebook: a valid scorecard row passes; {date:yesterday} fails; activeTime
   );
 });
 
+test("notebook: a dummy practice row passes; a negative damage or other kind fails", () => {
+  const nb = (row) => ["## Scorecard", "```json", JSON.stringify(row), "```"].join("\n");
+  const base = { date: "2026-10-03", fight: "Target Dummy", kind: "dummy", activeTimePct: 80, damage: 2400, durationS: 120 };
+  const run = (row) => check({ review: goodReview, slice: sliceContent, notebook: nb(row) });
+  assert.deepEqual(run(base).problems, []);
+  assert.ok(run({ ...base, damage: -1 }).problems.some((p) => p.includes("damage")));
+  assert.ok(run({ ...base, durationS: "120" }).problems.some((p) => p.includes("durationS")));
+  assert.ok(run({ ...base, kind: "boss" }).problems.some((p) => p.includes("kind")));
+});
+
 test("CLI: spawn the tool with temp files; exit code 0 on the good review, 1 on the bad one", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "citations-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
