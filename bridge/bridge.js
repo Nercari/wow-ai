@@ -94,6 +94,8 @@ if (DEFAULT_CWD_SOURCE === 'mentor workspace' && !fs.existsSync(DEFAULT_CWD)) {
   try { fs.cpSync(path.join(REPO, 'mentor'), DEFAULT_CWD, { recursive: true }); }
   catch { fs.mkdirSync(DEFAULT_CWD, { recursive: true }); }
 }
+// Later runs: the coach's instructions follow the template (see syncPrompt).
+const MENTOR_PROMPT_UPDATED = require('./forever/modules/05-mentor-guard.js').syncPrompt(path.join(REPO, 'mentor'), cfg.forever.mentorDir);
 const BROAD_NOTE = dir => `${dir} is a broad folder, so the agent can read unrelated files there. Pick a narrower one with /wow-ai cd.`;
 
 const resolveCwd = raw => P.resolveCwd(raw, DEFAULT_CWD);
@@ -879,6 +881,7 @@ function agentLine(id) {
 function banner() {
   console.log('WoW AI bridge');
   console.log(`  folder   : ${DEFAULT_CWD}  (${DEFAULT_CWD_SOURCE}; chats can override with /wow-ai cd)`);
+  if (MENTOR_PROMPT_UPDATED) console.log('  mentor   : the workspace AGENTS.md was updated from the template (old copy: AGENTS.md.bak)');
   if (P.isBroadFolder(DEFAULT_CWD)) console.log(`  WARNING  : ${BROAD_NOTE(DEFAULT_CWD)}`);
   console.log(`  addons   : ${cfg.addonDir}`);
   console.log(`  addon    : ${addonInstalled() ? 'installed' : 'NOT INSTALLED - run: node setup.js, then restart WoW'}`);

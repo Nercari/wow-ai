@@ -50,9 +50,28 @@ function rewrite(agent, args, cwd, repo) {
   }
   return args;
 }
+// The workspace is a one-time copy of mentor/, so a later fix to the coach's
+// instructions would never reach it. Each bridge start brings AGENTS.md up to
+// date; the player's own files (LOCAL.md, notebooks, reviews) are not touched,
+// and the replaced copy is kept as AGENTS.md.bak.
+function syncPrompt(templateDir, workspace) {
+  const src = path.join(templateDir, 'AGENTS.md');
+  const dst = path.join(workspace, 'AGENTS.md');
+  try {
+    const next = fs.readFileSync(src);
+    if (!fs.existsSync(workspace)) return false;
+    if (fs.existsSync(dst)) {
+      if (fs.readFileSync(dst).equals(next)) return false;
+      fs.copyFileSync(dst, dst + '.bak');
+    }
+    fs.writeFileSync(dst, next);
+    return true;
+  } catch { return false; }
+}
 module.exports = {
   inside,
   rewrite,
+  syncPrompt,
   augment(job, info, ctx) {
     const root = ctx.cfg.forever && ctx.cfg.forever.mentorDir || path.join(ctx.REPO, '..', 'wow-mentor');
     const cwd = job.cwd || '';
