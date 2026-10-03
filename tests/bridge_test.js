@@ -204,3 +204,26 @@ test('cmd flags accept only lowercase constrained names', () => {
   assert.equal(P.parseFlags('cmd=a_b').cmd, '');
   assert.equal(P.parseFlags('cmd=' + 'a'.repeat(25)).cmd, '');
 });
+
+test('isBroadFolder: drive root, home and above, Documents/Desktop/Downloads; a project folder is not', () => {
+  const home = path.join(os.tmpdir(), 'wowai-home', 'pedro');
+  for (const d of [path.parse(home).root, home, path.dirname(home), path.join(home, 'Documents'), path.join(home, 'desktop'), path.join(home, 'Downloads')]) {
+    assert.equal(P.isBroadFolder(d, home), true, d);
+  }
+  for (const d of [path.join(home, 'Documents', 'wow-mentor'), path.join(home, 'code'), path.join(os.tmpdir(), 'elsewhere', 'Documents')]) {
+    assert.equal(P.isBroadFolder(d, home), false, d);
+  }
+});
+
+test('pickDefaultCwd: explicit wins, broad start and config folders fall back to the mentor workspace', () => {
+  const home = path.join(os.tmpdir(), 'wowai-home', 'pedro');
+  const docs = path.join(home, 'Documents'), proj = path.join(docs, 'realms'), mentorDir = path.join(docs, 'wow-mentor');
+  const pick = o => P.pickDefaultCwd({ mentorDir, home, ...o });
+  assert.deepEqual(pick({ project: docs, env: proj, started: proj }), { dir: docs, source: '--project' });
+  assert.deepEqual(pick({ env: proj, started: docs }), { dir: proj, source: 'WOW_AI_PROJECT' });
+  assert.deepEqual(pick({ started: proj, config: docs }), { dir: proj, source: 'started here' });
+  assert.deepEqual(pick({ started: docs, config: proj }), { dir: proj, source: 'config.json' });
+  // The video case: started in Documents, config written by setup from Documents.
+  assert.deepEqual(pick({ started: docs, config: docs }), { dir: mentorDir, source: 'mentor workspace' });
+  assert.deepEqual(pick({ started: '', config: '' }), { dir: mentorDir, source: 'mentor workspace' });
+});

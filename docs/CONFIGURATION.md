@@ -11,7 +11,7 @@ The bridge reads `config.json` once at start. Restart it after editing, except f
 | `addonDir` | `…\World of Warcraft\_classic_beta_\Interface\AddOns` | The game's AddOns folder. The bridge writes the slot addons, `Inbox.lua` and every signal file under it. `setup.js` fills this in from the client it finds. |
 | `inboxFile` | `<addonDir>\WoWAI\Inbox.lua` | The file the game reads on `/reload` (fallback path). Normally derived from `addonDir`; only change it if you moved the addon. A value still naming the old `WoWClaude` addon is ignored in favour of the derived one. |
 | `savedVariablesFile` | `…\WTF\Account\<account>\SavedVariables\WoWAI.lua` | The addon's saved data. The bridge polls it for the reload-path outbox. `setup.js` picks the first account under `WTF\Account`; pass `--account <name>` to choose another. |
-| `defaultCwd` | `C:\path\to\your\project` | Folder for chats that have not chosen one with `/wow-ai cd`, when the bridge is started from inside this repo (`npm start`). See [Which folder the agent works in](#which-folder-the-agent-works-in). |
+| `defaultCwd` | empty | Folder for chats that have not chosen one with `/wow-ai cd`, when the bridge is started from inside this repo (`npm start`). Empty means the mentor workspace. See [Which folder the agent works in](#which-folder-the-agent-works-in). |
 
 ## Extensions
 
@@ -109,9 +109,11 @@ Each chat can pick its own folder with `/wow-ai cd` or **Folder...** in the menu
 
 1. `--project <dir>`
 2. `WOW_AI_PROJECT`
-3. The folder the bridge was started from, unless that is inside this repo
-4. `defaultCwd` in `config.json`
-5. The current folder
+3. The folder the bridge was started from, unless that is inside this repo or a broad folder
+4. `defaultCwd` in `config.json`, unless it is a broad folder
+5. The mentor workspace (`forever.mentorDir`, by default `wow-mentor` next to this repo), created from the `mentor/` template on first use
+
+A broad folder is a drive root, your home folder or anything above it, or its Documents, Desktop or Downloads: an agent working there reads unrelated files. Naming one on purpose (`--project`, `WOW_AI_PROJECT`, `/wow-ai cd`) still works, and every reply in it carries a one-line warning.
 
 A relative `/wow-ai cd` path is resolved against that default. `~` expands to your home folder. The agents keep sessions per folder, so a chat that changes folder starts a fresh session there; the same happens when a chat changes agent.
 
@@ -133,7 +135,7 @@ All of these are gitignored.
 | Flag | Meaning |
 |---|---|
 | `--wow "<client folder>"` | The folder containing `Wow*.exe` and `Interface\`, when auto-detection fails. |
-| `--project "<dir>"` | Written to `defaultCwd`. Defaults to the folder you ran setup from. |
+| `--project "<dir>"` | Written to `defaultCwd`. Left empty by default, which means the mentor workspace. |
 | `--account <name>` | Which `WTF\Account\<name>` to use when there are several. |
 
 Re-running `setup.js` re-copies the addon (except `Inbox.lua`, which the bridge owns once running), keeps an existing `config.json` (adding the `agents` blocks and fixing paths if it predates them), and only creates slot and signal files that are missing. An install under the project's old name (the `WoWClaude` addon) is migrated: its saved data is copied to `WoWAI.lua` so chats survive, and the old addon and slot folders are removed.

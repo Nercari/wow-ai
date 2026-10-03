@@ -68,21 +68,31 @@ if (!DEFAULT_AGENT) {
   process.exit(2);
 }
 
-// Default folder: --project, else the folder we were started from (unless that is
-// this repo, i.e. npm start), else the configured one.
+// Default folder: --project, else WOW_AI_PROJECT, else the folder we were started
+// from (unless that is this repo, i.e. npm start), else the configured one, else
+// the mentor workspace. A broad start or configured folder (Documents, home, a
+// drive root) is skipped: the agent would read unrelated files there.
 const REPO = path.dirname(HERE);
 function insideRepo(dir) {
   const rel = path.relative(REPO, dir);
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
+cfg.forever = cfg.forever || {};
+cfg.forever.mentorDir = path.resolve(cfg.forever.mentorDir || path.join(REPO, '..', 'wow-mentor'));
 const projectIdx = argv.indexOf('--project');
-const DEFAULT_CWD = path.resolve(
-  projectIdx >= 0 && argv[projectIdx + 1] ? argv[projectIdx + 1]
-    : process.env.WOW_AI_PROJECT ? process.env.WOW_AI_PROJECT
-    : !insideRepo(process.cwd()) ? process.cwd()
-    : cfg.defaultCwd || process.cwd());
-const DEFAULT_CWD_SOURCE = projectIdx >= 0 ? '--project' : process.env.WOW_AI_PROJECT ? 'WOW_AI_PROJECT'
-  : !insideRepo(process.cwd()) ? 'started here' : 'config.json';
+const { dir: DEFAULT_CWD, source: DEFAULT_CWD_SOURCE } = P.pickDefaultCwd({
+  project: projectIdx >= 0 ? argv[projectIdx + 1] : '',
+  env: process.env.WOW_AI_PROJECT,
+  started: insideRepo(process.cwd()) ? '' : process.cwd(),
+  config: cfg.defaultCwd,
+  mentorDir: cfg.forever.mentorDir,
+});
+// First run: the mentor workspace starts as a copy of the template in mentor/.
+if (DEFAULT_CWD_SOURCE === 'mentor workspace' && !fs.existsSync(DEFAULT_CWD)) {
+  try { fs.cpSync(path.join(REPO, 'mentor'), DEFAULT_CWD, { recursive: true }); }
+  catch { fs.mkdirSync(DEFAULT_CWD, { recursive: true }); }
+}
+const BROAD_NOTE = dir => `${dir} is a broad folder, so the agent can read unrelated files there. Pick a narrower one with /wow-ai cd.`;
 
 const resolveCwd = raw => P.resolveCwd(raw, DEFAULT_CWD);
 const { sameFolder } = P;
@@ -98,8 +108,6 @@ function siblingFolders() {
 const SLOTS = cfg.slots || 200;
 const MAX_PARALLEL = cfg.maxParallel || 3;
 const cap = Object.assign({ enabled: true, processName: 'WowB', cellPx: 4, cellsPerRow: 200, maxRows: 48, intervalMs: 250 }, cfg.capture || {});
-cfg.forever = cfg.forever || {};
-cfg.forever.mentorDir = path.resolve(cfg.forever.mentorDir || path.join(REPO, '..', 'wow-mentor'));
 cfg.forever.clientDir = path.resolve(cfg.forever.clientDir || path.resolve(cfg.addonDir || '', '..', '..'));
 cfg.forever.journal = Object.assign({ dir: path.join(cfg.forever.mentorDir, 'journal'), enabled: true }, cfg.forever.journal || {});
 if (!cfg.forever.journal.dir) cfg.forever.journal.dir = path.join(cfg.forever.mentorDir, 'journal');
@@ -646,6 +654,7 @@ function runJob(job) {
   };
   if (agent.stream === 'text') pushProgress('hermes is working (no live progress)');
   if (input.note) notes.push(input.note);
+  if (P.isBroadFolder(cwd)) notes.push(BROAD_NOTE(cwd));
   // Long thinking stretches produce no tool events; keep the heartbeat alive anyway.
   const keepalive = setInterval(() => beat(job), 45000);
 
@@ -840,6 +849,7 @@ function agentLine(id) {
 function banner() {
   console.log('WoW AI bridge');
   console.log(`  folder   : ${DEFAULT_CWD}  (${DEFAULT_CWD_SOURCE}; chats can override with /wow-ai cd)`);
+  if (P.isBroadFolder(DEFAULT_CWD)) console.log(`  WARNING  : ${BROAD_NOTE(DEFAULT_CWD)}`);
   console.log(`  addons   : ${cfg.addonDir}`);
   console.log(`  addon    : ${addonInstalled() ? 'installed' : 'NOT INSTALLED - run: node setup.js, then restart WoW'}`);
   console.log(`  slots    : ${slotsInstalled() ? SLOTS + ' installed' : 'NOT INSTALLED - run: node setup.js (or node bridge/install-slots.js), then restart WoW'}`);
