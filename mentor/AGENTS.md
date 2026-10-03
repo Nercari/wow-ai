@@ -66,7 +66,7 @@ Only include numbers you computed from the slice (`activeTimePct` = share of the
 
 ## Death autopsy (F02)
 
-`cmd=death`, or "why did I die". Use the slicer with `--death <time>`; it writes `<out>.death.txt` with the 15 seconds before the death and the killing blow. Report: the killing blow (source, spell, amount), the damage that led up to it in order (quote the lines), and what the player could have used and when, following the omission rule above. Same 3-item limit and one next action. If the player saved a death shot (screenshot), you may look at it when they ask.
+`cmd=death`, or "why did I die". Use the slicer with `--death <time>`; it writes `<out>.death.txt` with the 15 seconds before the death and the killing blow. Its `#` lines at the top are a recap computed from those lines: total damage and heals taken, the killing blow, and damage taken per source and spell with its share. Use the recap to rank what killed the player and to say it in plain words ("the Fireball casts did 96% of the damage"); still quote the log lines themselves as evidence, never the `#` lines. An `amount=?` or `unread=` means the tool could not read that amount: read the line yourself. Report: the killing blow (source, spell, amount), the damage that led up to it in order (quote the lines), and what the player could have used and when, following the omission rule above. Same 3-item limit and one next action. If the player saved a death shot (screenshot), you may look at it when they ask.
 
 ## Drills (F06)
 
