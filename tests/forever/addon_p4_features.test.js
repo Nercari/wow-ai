@@ -152,6 +152,9 @@ test('translator never buffers non-opted channels, rate limits <= 1 send per 10s
     WoWAI.Send = function(text, allow, opts)
       STUB.sentMsg = text
       STUB.sentOpts = opts
+      for _, c in ipairs(WoWAIDB.chats) do
+        if c.id == opts.chat then c.pendingId = 7; STUB.target = c end
+      end
     end
   `);
 
@@ -180,10 +183,9 @@ test('translator never buffers non-opted channels, rate limits <= 1 send per 10s
 
   // A plain reply in the mentor chat is not a translation: no popup.
   vm.run(`
-    WoWAIDB.chats = { { id = "m1", name = "mentor" } }
     for _, mod in ipairs(WoWAIForever.modules) do
       if mod.name == "translate" and mod.onReply then
-        mod.onReply(WoWAIDB.chats[1], { text = "Plain mentor answer." })
+        mod.onReply(STUB.target, { id = 6, text = "Plain mentor answer." })
       end
     end
   `);
@@ -193,7 +195,7 @@ test('translator never buffers non-opted channels, rate limits <= 1 send per 10s
   vm.run(`
     for _, mod in ipairs(WoWAIForever.modules) do
       if mod.name == "translate" and mod.onReply then
-        mod.onReply({ id = "c1" }, { cmd = "translate", text = "Translation here.\\n\\n\`\`\`reply\\nEstou bem, obrigado!\\n\`\`\`" })
+        mod.onReply(STUB.target, { id = 7, text ="Translation here.\\n\\n\`\`\`reply\\nEstou bem, obrigado!\\n\`\`\`" })
       end
     end
   `);

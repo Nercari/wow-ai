@@ -28,7 +28,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 11. **No untested `/run` scripts from the mentor** (done, PR #15). The mentor handed out untested scripts, including key rebinding (4:55, 8:15). It should point to the game menus (Options > Keybindings) instead. Fix in the mentor prompt. Related to item 5.
 12. **Status line while waiting** (done, PR #17). Two different timers ("running 25s" and "running 17s", 0:45) and "0 actions" while six are listed (2:25). Show one timer and the right count.
 13. **Reply popup covers the quest tracker** and stays up for minutes (2:55 to 4:50, 6:45 to 7:40); it also opens with a blank gap at the top. Close it by itself or keep it clear of the tracker. PR #18 stops it opening for ordinary replies (it was the translation popup); for real translations it still stays until closed.
-14. **Same reply shown three times** (done, PR #18). (window, chat, popup) even with the window open (0:00). Show it once when the window is open.
+14. **Same reply shown three times** (done, PR #18): window, chat and popup, even with the window open (0:00). Show it once when the window is open.
 15. **Copy box is see-through**, so the selected text sits on top of the reply (7:45). Give it a solid background.
 16. **Footer looks crossed out and the title runs into the frame border** (all video). Fix the layout.
 17. **Window opens on top of the game chat** by default (0:00, 5:10). Pick a default position clear of the chat.

@@ -2082,12 +2082,11 @@ local function EchoToChat(chat, text, agent, summary)
 	print("    " .. ChatLinks(chat):sub(3))
 end
 
--- A reply landed. Always play the sound and echo it to the game chat; if that
--- chat isn't on screen, also flash the screen text and light up the mini bar.
+-- A reply landed. Always play the sound; if that chat isn't on screen, also echo
+-- it to the game chat, flash the screen text and light up the mini bar.
 function WoWAI.Notify(chat, text, agent, summary)
 	pcall(PlaySound, 3081)
 	WoWAI.UpdateMini()
-	-- The player is already reading this chat in the window: show the reply once.
 	if ui.frame and ui.frame:IsShown() and db.activeChat == chat.id then return end
 	EchoToChat(chat, text, agent, summary)
 	if UIErrorsFrame then

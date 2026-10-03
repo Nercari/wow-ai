@@ -54,6 +54,11 @@ local function FindTargetChat()
 	return nil
 end
 
+-- The pending message id of the last translate request, per chat: the bridge's
+-- reply record carries no cmd, so this is how a translation is told from a
+-- plain reply in the same chat.
+local translateIds = {}
+
 local function SendBuffer()
 	if #buffer == 0 then return end
 	if IsBlocked() then return end
@@ -75,7 +80,9 @@ local function SendBuffer()
 	buffer = {}
 	lastSendTime = now
 	local payload = "[translate] to " .. tdb.lang .. ":\n" .. table.concat(lines, "\n")
+	local before = target.pendingId
 	WoWAI.Send(payload, nil, { cmd = "translate", chat = target.id })
+	if target.pendingId and target.pendingId ~= before then translateIds[target.id] = target.pendingId end
 end
 
 local function EnsureFrame()
@@ -135,6 +142,10 @@ local function OnReply(chat, rec)
 	-- translations are sent when no "translate" chat exists) is not one.
 	local isTranslateChat = chat and type(chat.name) == "string" and chat.name:lower() == "translate"
 	local isTranslateCmd = (rec.cmd == "translate")
+	if chat and rec.id ~= nil and translateIds[chat.id] == rec.id then
+		isTranslateCmd = true
+		translateIds[chat.id] = nil
+	end
 	if not isTranslateChat and not isTranslateCmd and not rec.text:find("%[translate%]") then
 		return
 	end
