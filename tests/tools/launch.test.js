@@ -201,6 +201,32 @@ test("update: a detached commit that a branch holds is switched to the release",
   assert.match(r.note, /switched from "a detached commit" to forever/);
 });
 
+test("update: forever open in another worktree is not moved under it", (t) => {
+  const { dev, player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  const other = path.join(path.dirname(player), "other");
+  git(player, "worktree", "add", "-q", other, "forever");
+  const forever = git(player, "rev-parse", "forever");
+  commit(dev, "bridge/bridge.js", "x\n");
+  const r = update(player);
+  assert.equal(r.changed, false);
+  assert.match(r.note, /another folder/);
+  assert.equal(git(player, "rev-parse", "forever"), forever);
+  assert.equal(git(other, "status", "--porcelain"), "");
+});
+
+test("update: a failing post-checkout hook does not hide a checkout that happened", (t) => {
+  const { dev, player } = repos(t);
+  git(player, "switch", "-q", "-c", "agent-work");
+  commit(dev, "bridge/bridge.js", "x\n");
+  const hook = path.join(player, ".git", "hooks", "post-checkout");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const r = update(player);
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+  assert.deepEqual([r.changed, r.files], [true, ["bridge/bridge.js"]]);
+  assert.equal(git(player, "rev-parse", "--abbrev-ref", "forever@{upstream}"), "origin/forever");
+});
+
 test("update: no local forever and two remotes that have one: forever is made from origin", (t) => {
   const { dev, player } = repos(t);
   git(player, "remote", "add", "upstream", git(player, "remote", "get-url", "origin"));
