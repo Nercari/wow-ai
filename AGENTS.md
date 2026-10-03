@@ -7,6 +7,7 @@ Pedro's fork of `chelinho139/wow-ai` (MIT): chat with local coding agents from i
 ## Working here
 
 - Default branch is `forever`. Every change is a PR into it, one change per PR, verified by an agent that did not write it before merge.
+- Work without check-ins (Pedro, 2026-10-03). Once CI is green and the independent verifier returns PASS, merge the PR yourself and start the next backlog item; never ask Pedro to merge, approve or type "continue". Stop and ask only for: publishing or messaging outside GitHub, spending money, deleting data without a backup, force-push, or a goal/direction decision. Put those on nercari-control #114 and keep working on anything else.
 - `npm ci`, then `node tools/safety-ci.js` and `npm test` must pass (CI runs both on Windows and Linux). Add or extend a test for every behaviour change; update `CHANGELOG.md` and `docs/` when users would notice.
 - The bridge stays dependency-free; the addon uses only APIs in the Forever client.
 - Large work (several PRs or a new feature) starts as a numbered item in `docs/spec.md`.
