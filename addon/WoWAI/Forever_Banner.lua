@@ -4,8 +4,11 @@ local function EnsureBanner()
 	if banner then return banner end
 	banner = CreateFrame("Frame", "WoWAIPolicyBanner", UIParent, "BackdropTemplate")
 	banner:SetSize(520, 60)
-	banner:SetPoint("TOP", UIParent, "TOP", 0, -20)
+	-- Below the mini bar (TOP -40, 30 tall) so the two never overlap.
+	banner:SetPoint("TOP", UIParent, "TOP", 0, -90)
 	banner:SetFrameStrata("HIGH")
+	banner:SetClampedToScreen(true)
+	if type(UISpecialFrames) == "table" then tinsert(UISpecialFrames, "WoWAIPolicyBanner") end -- Esc closes it
 	if type(banner.SetBackdrop) == "function" then
 		banner:SetBackdrop({
 			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
