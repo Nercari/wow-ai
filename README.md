@@ -34,7 +34,7 @@ The bridge drives whichever of these you have installed; each chat can use a dif
 | **Antigravity** (`agy`) | `agy -p=<prompt> --output-format stream-json`, resumed with `--conversation` | Antigravity permission switches | no |
 | **Hermes** (`hermes`) | `hermes chat --query-file -`, resumed with `--resume` | default only; the bridge never uses `--yolo` | no |
 
-`agent` in `bridge/config.json` is the default (`claude`). `/wow-ai agent codex` switches the current chat, or right-click a chat in the left panel and pick **Agent...**; the reply bubbles and the game-chat echo are labelled with whoever answered. A session belongs to the agent that made it, so a chat that changes agent starts a fresh session there (its transcript stays). Install notes, the exact command lines, what each permission mode means per agent, and known limits are in [docs/AGENTS.md](docs/AGENTS.md).
+`agent` in `bridge/config.json` is the default (`claude`). The **AI** button under the chat switches the current chat to any agent installed on your PC, and to any of its models (`agents.<id>.models` in the config; Claude offers opus, sonnet and haiku). `/wow-ai agent codex` (or `/wow-ai agent claude sonnet`) does the same typed; the reply bubbles and the game-chat echo are labelled with whoever answered. A session belongs to the agent that made it, so a chat that changes agent starts a fresh session there (its transcript stays). Install notes, the exact command lines, what each permission mode means per agent, and known limits are in [docs/AGENTS.md](docs/AGENTS.md).
 
 ## Requirements
 
@@ -113,7 +113,7 @@ Every chat that hasn't picked its own folder now works in `realms`, and the pane
 
 In game: `/wow-ai` opens the window. Until the bridge has answered, a **Connect** button sits where Send would be: start the bridge, click it, and the light turns green (a message typed before that stays in the box). Then click the input box, type, Enter. The reply arrives with the whisper sound; the window's light shows the bridge state (green/yellow/red, hover for details), and **Reconnect** shows up if the bridge goes quiet.
 
-Right-clicking a chat in the left panel opens a small menu with **Rename...**, **Folder...** and **Agent...** (right-click again to close it); the trash can on the row deletes the chat after an OK/Cancel confirm. **Folder...** sets the folder this chat's agent works in (same as `/wow-ai cd` below), **Agent...** which agent answers it (same as `/wow-ai agent`); each chat keeps its own, so you can have chats on different projects, with different agents, side by side.
+Right-clicking a chat in the left panel opens a small menu with **Rename...**, **Folder...** and **AI / model...** (right-click again to close it); the trash can on the row deletes the chat after an OK/Cancel confirm. **Folder...** sets the folder this chat's agent works in (same as `/wow-ai cd` below), **AI / model...** which agent and model answers it (same as the AI button and `/wow-ai agent`); each chat keeps its own, so you can have chats on different projects, with different agents, side by side.
 
 | Command | What it does |
 |---|---|
@@ -121,7 +121,7 @@ Right-clicking a chat in the left panel opens a small menu with **Rename...**, *
 | `/ai <text>` | send from the normal chat box (`/wow-ai <text>` is the same). `/ai` is a full alias, so `/ai agent grok` or `/ai cd realms` work too; a message that merely starts with a command word, like `/ai help me with this macro` or `/ai delete the unused imports`, is still sent as a message because the rest of the line doesn't fit that command |
 | `/wow-ai new [name]` | new chat = new agent session. Unnamed chats take their title from your first message |
 | `/wow-ai chat <n\|name>` | switch chats (or click the left panel; right-click a row for Rename, Folder and Agent, its trash can deletes it) |
-| `/wow-ai agent [claude\|codex\|grok\|agy\|hermes]` | which agent this chat talks to; no name shows the current one and the bridge's default, `default` goes back to the bridge's. A chat that changes agent starts a fresh session with it |
+| `/wow-ai agent [claude\|codex\|grok\|agy\|hermes] [model]` | which agent (and model) this chat talks to; `default` goes back to the bridge's. A chat that changes agent starts a fresh session with it; a model change keeps the conversation |
 | `/wow-ai cd <folder>` | folder this chat's agent works in (**Folder...** after right-clicking the chat opens the same thing as a dialog). Relative to the bridge's folder (`/wow-ai cd realms`, `/wow-ai cd ../other`), `~` works, a full path too; `/wow-ai cd` alone goes back to the bridge's default. A chat that changes folder starts a fresh session there |
 | `/wow-ai reset` | wipe this chat's agent memory, keep the transcript |
 | `/wow-ai context [on\|off]` | show what the agent is told about your character and location, or turn it on/off |

@@ -34,6 +34,7 @@
     "claude": {
       "path": "",
       "model": "",
+      "models": ["opus", "sonnet", "haiku"],
       "permissionMode": "acceptEdits",
       "allowedTools": [
         "WebSearch",
@@ -54,6 +55,7 @@
     "codex": {
       "path": "",
       "model": "",
+      "models": [],
       "permissionMode": "acceptEdits",
       "networkAccess": false,
       "extraArgs": []
@@ -61,18 +63,21 @@
     "agy": {
       "path": "",
       "model": "",
+      "models": [],
       "permissionMode": "acceptEdits",
       "extraArgs": []
     },
     "hermes": {
       "path": "",
       "model": "",
+      "models": [],
       "permissionMode": "acceptEdits",
       "extraArgs": []
     },
     "grok": {
       "path": "",
       "model": "",
+      "models": [],
       "permissionMode": "acceptEdits",
       "allowedTools": [
         "WebSearch",

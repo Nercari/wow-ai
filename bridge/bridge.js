@@ -42,7 +42,7 @@ const TMP_DIR = path.join(HERE, 'tmp'); // prompt files for agents that read the
 const argv = process.argv.slice(2);
 if (argv.includes('--on')) { try { fs.unlinkSync(path.join(HERE, 'KILLED')); } catch {} }
 if (argv.includes('--help') || argv.includes('-h')) {
-  console.log('wow-ai [--project <dir>] [--once] [--inject "text" [--agent <id>]]\n\n' +
+  console.log('wow-ai [--project <dir>] [--once] [--inject "text" [--agent <id>] [--model <name>]]\n\n' +
     'Runs the WoW AI bridge. Chats without a folder of their own work in <dir>,\n' +
     'or in the folder you started it from, or in defaultCwd from bridge/config.json.\n' +
     `Agents: ${A.agentIds().join(', ')} (the default is "agent" in config.json; chats pick with /wow-ai agent).`);
@@ -59,6 +59,8 @@ const injectIdx = argv.indexOf('--inject');
 const inject = injectIdx >= 0 ? argv[injectIdx + 1] : null;
 const agentIdx = argv.indexOf('--agent');
 const injectAgent = agentIdx >= 0 ? argv[agentIdx + 1] : '';
+const modelIdx = argv.indexOf('--model');
+const injectModel = modelIdx >= 0 ? argv[modelIdx + 1] : '';
 const exitWhenIdle = once || inject !== null;
 
 // The agent chats use unless they pick their own (/wow-ai agent, "agent=" flag).
@@ -303,7 +305,23 @@ function takeMapCommands(job, text) {
 // Slot file / Inbox.lua body: see protocol.luaTable.
 function slotFile(globalName, records, urgent = true) {
   const map = Date.now() < mapShareUntil && (urgent || mapLuaSize() <= MAP_PROGRESS_MAX) ? state.map : null;
-  return P.luaTable(globalName, records, { cwd: DEFAULT_CWD, restore: pendingRestore, agent: DEFAULT_AGENT, agents: A.agentIds(), map });
+  const { agents, models } = pools();
+  return P.luaTable(globalName, records, { cwd: DEFAULT_CWD, restore: pendingRestore, agent: DEFAULT_AGENT, agents, models, map });
+}
+
+// What the in-game picker offers: the agents installed on this PC (all of them
+// when none is, so a chat still gets the "not installed" hint) and the models
+// each can switch to. Looked up again at most once a minute, so an agent
+// installed while the bridge runs shows up without a restart.
+let poolsCache = null;
+function pools() {
+  if (poolsCache && Date.now() - poolsCache.at < 60000) return poolsCache;
+  const found = A.agentIds().filter(id => A.resolveCommand(id, A.agentConfig(cfg, id)).found);
+  const agents = found.length ? found : A.agentIds();
+  const models = {};
+  for (const id of agents) models[id] = A.modelChoices(A.agentConfig(cfg, id), id);
+  poolsCache = { at: Date.now(), agents, models };
+  return poolsCache;
 }
 
 function addonInstalled() {
@@ -575,7 +593,19 @@ function runJob(job) {
   }
   job.agent = agentId;
   const agent = A.AGENTS[agentId];
-  const acfg = A.agentConfig(cfg, agentId);
+  let acfg = A.agentConfig(cfg, agentId);
+  // The chat's model (a "model=" flag), if it is one this agent offers. A model
+  // change keeps the session: the conversation carries on with the new model.
+  if (job.model) {
+    const choices = A.modelChoices(acfg, agentId);
+    if (!choices.includes(job.model)) {
+      log(`${tag} model "${job.model}" is not offered for ${agentId}`);
+      finish(job, 'error', `${agent.name} has no model "${job.model}" here. Models: ${choices.join(', ') || 'only its default'}.\n` +
+        `Pick one from the AI button under the chat, or add it to agents.${agentId}.models in config.json.`);
+      return;
+    }
+    acfg = { ...acfg, model: job.model };
+  }
   const cmd = A.resolveCommand(agentId, acfg);
   if (!cmd.found) {
     log(`${tag} ${agentId} not found: ${cmd.note}`);
@@ -877,7 +907,7 @@ Forever.init({ cfg, log, HERE, REPO, SAVED_VARS, state, saveState, atomicWrite, 
   } });
 process.on('exit', () => Forever.stop());
 if (inject !== null) {
-  submit({ id: state.lastId + 1, session: '', chat: '', text: inject, cwd: '', newSession: false, via: 'inject', agent: injectAgent || '' });
+  submit({ id: state.lastId + 1, session: '', chat: '', text: inject, cwd: '', newSession: false, via: 'inject', agent: injectAgent || '', model: injectModel || '' });
 } else {
   pollSavedVariables();
   if (once) {
