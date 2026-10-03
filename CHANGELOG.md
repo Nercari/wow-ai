@@ -26,6 +26,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- The `.death.txt` file listed hits the player dealt as well as hits received. It now keeps only events whose destination is the player, so the recap and the raw lines show what hit you.
 - A reply that arrived during combat (or an encounter or challenge run) was shown at once: sound, game chat line and window. It now waits and is shown once when the fight ends; the chat shows "Reply ready. It shows when the fight ends." meanwhile.
 - A Lua error on login on the Forever client (`Forever.lua:27 in function 'Register'`): the auction house module asked for retail-only search events the client does not have. Events a client lacks are now skipped (listed in `WoWAIForever.skippedEvents`) and every other event still registers.
 
