@@ -56,6 +56,8 @@ function update(root) {
   const head = git('rev-parse', 'HEAD');
   if (head.missing) return keep('git is not installed; skipping the update');
   if (!head.ok) return keep('git could not read this checkout; skipping the update');
+  const done = finishPrevious(root, git);
+  if (done.left.length) return keep(`${count(done.left)} from the last update still could not be replaced (${done.left.slice(0, 3).join(', ')}): close anything using them and run this again`);
   if (git('status', '--porcelain', '--untracked-files=no').out) return keep('this folder has local edits, so it was not updated (nothing was changed)');
 
   // The remote the local release branch tracks, else origin.
@@ -101,15 +103,48 @@ function update(root) {
   if (!moved.ok && after === head.out && (branch === RELEASE_BRANCH || !onRelease)) {
     return keep(`could not update (${why(moved)}); using the version you have`);
   }
-  // A file git could not replace (in use, read-only) stays old and shows as
-  // a local edit; list only the files that really changed, and say which didn't.
-  const stuck = lines(git('diff', '--name-only', 'HEAD'));
-  const files = after === head.out ? [] : lines(git('diff', '--name-only', head.out, after)).filter(f => !stuck.includes(f));
+  // A file git could not replace, create or delete (in use, read-only) keeps
+  // the previous checkout's bytes. List only the files that really changed,
+  // say which didn't, and note them so the next run can finish the job.
+  const deleted = after === head.out ? [] : lines(git('diff', '--name-only', '--diff-filter=D', head.out, after));
+  const stuck = [...lines(git('diff', '--name-only', 'HEAD')), ...deleted.filter(f => fs.existsSync(path.join(root, f)))];
+  const files = [...done.files, ...(after === head.out ? [] : lines(git('diff', '--name-only', head.out, after)).filter(f => !stuck.includes(f)))];
   if (stuck.length) {
-    return { changed: files.length > 0, files, note: `updated, but ${stuck.length} file${stuck.length === 1 ? '' : 's'} could not be replaced (${stuck.slice(0, 3).join(', ')}): close anything using them and run this again${switched}` };
+    fs.writeFileSync(pendingFile(root, git), JSON.stringify({ from: head.out, paths: stuck }));
+    return { changed: files.length > 0, files, note: `partly updated: ${count(stuck)} could not be replaced (${stuck.slice(0, 3).join(', ')}): close anything using them and run this again${switched}` };
   }
   if (!files.length) return { changed: false, files, note: `already up to date${switched}` };
-  return { changed: true, files, note: `updated to the latest release (${files.length} file${files.length === 1 ? '' : 's'} changed)${switched}` };
+  return { changed: true, files, note: `updated to the latest release (${count(files)} changed)${switched}` };
+}
+
+const count = fs_ => `${fs_.length} file${fs_.length === 1 ? '' : 's'}`;
+const pendingFile = (root, git) => path.resolve(root, git('rev-parse', '--git-path', 'wowai-unfinished').out);
+
+// Finishes an update that left files behind (see the end of update()). A file
+// is replaced only while it still holds exactly what the previous checkout
+// put there (or is still absent when that checkout had none); anything else
+// is the player's edit and is left alone. Returns the files it finished and
+// the ones still stuck.
+function finishPrevious(root, git) {
+  const file = pendingFile(root, git);
+  let pending;
+  try { pending = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return { files: [], left: [] }; }
+  const blob = (rev, f) => git('rev-parse', '--verify', '--quiet', `${rev}:${f}`).out;
+  const files = [], left = [];
+  for (const f of pending.paths) {
+    const disk = fs.existsSync(path.join(root, f)) ? git('hash-object', '--', f).out : '';
+    const want = blob('HEAD', f);
+    if (disk === want) { files.push(f); continue; }
+    if (disk !== blob(pending.from, f)) continue;
+    if (want) {
+      if (git('checkout', 'HEAD', '--', f).ok && git('hash-object', '--', f).out === want) files.push(f); else left.push(f);
+    } else {
+      try { fs.unlinkSync(path.join(root, f)); files.push(f); } catch { left.push(f); }
+    }
+  }
+  if (left.length) fs.writeFileSync(file, JSON.stringify({ from: pending.from, paths: left }));
+  else fs.rmSync(file, { force: true });
+  return { files, left };
 }
 
 // True when an installed addon file is missing or differs from the repo copy.

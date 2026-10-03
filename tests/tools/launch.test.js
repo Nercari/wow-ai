@@ -262,6 +262,63 @@ test("update: a file left old by the checkout is named and not listed as updated
   assert.match(r.note, /1 file could not be replaced \(bridge\/bridge\.js\)/);
 });
 
+// The hooks below put back the previous checkout's bytes, as git does with a
+// file it cannot replace or delete (in use, read-only).
+const read = (dir, f) => fs.readFileSync(path.join(dir, f), "utf8").replace(/\r\n/g, "\n");
+
+test("update: a file left old by a switch is replaced on the next run", (t) => {
+  const { dev, player } = repos(t);
+  commit(dev, "bridge/bridge.js", "old\n");
+  update(player);
+  git(player, "switch", "-q", "-c", "agent-work");
+  commit(dev, "bridge/bridge.js", "new\n");
+  commit(dev, "addon/a.lua", "new\n");
+  const hook = path.join(player, ".git", "hooks", "post-checkout");
+  fs.writeFileSync(hook, "#!/bin/sh\nprintf 'old\\n' > bridge/bridge.js\n", { mode: 0o755 });
+  const first = update(player);
+  assert.deepEqual(first.files, ["addon/a.lua"]);
+  assert.match(first.note, /^partly updated: 1 file could not be replaced \(bridge\/bridge\.js\)/);
+  fs.rmSync(hook);
+  const second = update(player);
+  assert.deepEqual([second.changed, second.files, second.note], [true, ["bridge/bridge.js"], "updated to the latest release (1 file changed)"]);
+  assert.equal(read(player, "bridge/bridge.js"), "new\n");
+  assert.equal(git(player, "status", "--porcelain"), "");
+});
+
+test("update: a file the release deletes but the checkout left is removed on the next run", (t) => {
+  const { dev, player } = repos(t);
+  commit(dev, "bridge/bridge.js", "old\n");
+  update(player);
+  git(dev, "rm", "-q", "bridge/bridge.js");
+  git(dev, "commit", "-q", "-m", "rm");
+  git(dev, "push", "-q");
+  const hook = path.join(player, ".git", "hooks", "post-merge");
+  fs.writeFileSync(hook, "#!/bin/sh\nmkdir -p bridge && printf 'old\\n' > bridge/bridge.js\n", { mode: 0o755 });
+  const first = update(player);
+  assert.deepEqual([first.changed, first.files], [false, []]);
+  assert.match(first.note, /^partly updated: 1 file could not be replaced \(bridge\/bridge\.js\)/);
+  fs.rmSync(hook);
+  const second = update(player);
+  assert.deepEqual([second.changed, second.files], [true, ["bridge/bridge.js"]]);
+  assert.equal(fs.existsSync(path.join(player, "bridge", "bridge.js")), false);
+});
+
+test("update: a left-over file the player then edited is not replaced", (t) => {
+  const { dev, player } = repos(t);
+  commit(dev, "bridge/bridge.js", "old\n");
+  update(player);
+  git(player, "switch", "-q", "-c", "agent-work");
+  commit(dev, "bridge/bridge.js", "new\n");
+  const hook = path.join(player, ".git", "hooks", "post-checkout");
+  fs.writeFileSync(hook, "#!/bin/sh\nprintf 'old\\n' > bridge/bridge.js\n", { mode: 0o755 });
+  update(player);
+  fs.rmSync(hook);
+  fs.writeFileSync(path.join(player, "bridge", "bridge.js"), "mine\n");
+  const r = update(player);
+  assert.match(r.note, /local edits/);
+  assert.equal(read(player, "bridge/bridge.js"), "mine\n");
+});
+
 test("update: no local forever and two remotes that have one: forever is made from origin", (t) => {
   const { dev, player } = repos(t);
   git(player, "remote", "add", "upstream", git(player, "remote", "get-url", "origin"));
