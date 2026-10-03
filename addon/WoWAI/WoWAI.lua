@@ -1468,6 +1468,8 @@ function WoWAI.SendFromInput()
 	local text = ui.input:GetText()
 	ui.input:SetText("")
 	ui.input:ClearFocus() -- hand the keyboard back to the game after sending
+	-- A lone "review" typed in the box is the review command, not a plain message.
+	if Trim(text):lower():match("^review[%.!]*$") then return SlashCmdList["WOWAI"]("review") end
 	WoWAI.Send(text)
 end
 
@@ -2768,8 +2770,21 @@ local function BuildUI()
 	pool:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.pool = pool
 
+	-- Same as typing /ai review: the command attaches the last fight's start and
+	-- end times, which a plain "review my fight" message does not carry.
+	local review = MakeButton(f, "Review last fight", 120, function() SlashCmdList["WOWAI"]("review") end)
+	review:SetPoint("LEFT", pool, "RIGHT", 6, 0)
+	review:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Review last fight")
+		GameTooltip:AddLine("Asks the mentor to review your last fight from the combat log (same as /ai review). Out of combat only; the combat log must be on.", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	review:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.review = review
+
 	local resend = MakeButton(f, "Resend", 70, WoWAI.Resend)
-	resend:SetPoint("LEFT", pool, "RIGHT", 6, 0)
+	resend:SetPoint("LEFT", review, "RIGHT", 6, 0)
 	resend:Hide()
 	ui.resend = resend
 
