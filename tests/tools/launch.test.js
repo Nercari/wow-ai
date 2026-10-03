@@ -171,14 +171,19 @@ async function waitFor(check, ms = 15000) {
 
 test("Windows: the bridge window starts, is found by stop-bridge.ps1 -ListOnly, and stops", WIN, async (t) => {
   // A folder with spaces, like "AI Projects", and a stand-in supervisor.js.
-  const bridge = path.join(tmp(t), "wow ai copy", "bridge");
+  // realpath: the runner's TEMP is an 8.3 short path (RUNNER~1); a real
+  // checkout path is a long one, as stop-bridge.ps1 compares them.
+  const bridge = path.join(fs.realpathSync.native(tmp(t)), "wow ai copy", "bridge");
   fs.mkdirSync(bridge, { recursive: true });
   fs.copyFileSync(path.resolve(__dirname, "../../bridge/stop-bridge.ps1"), path.join(bridge, "stop-bridge.ps1"));
   fs.writeFileSync(path.join(bridge, "supervisor.js"), "setInterval(() => {}, 1000);\n");
   t.after(() => launch.stopBridge(bridge));
   assert.equal(launch.bridgeRunning(bridge), false);
   launch.startBridge(bridge);
-  assert.equal(await waitFor(() => launch.bridgeRunning(bridge)), true, "started");
+  const started = await waitFor(() => launch.bridgeRunning(bridge));
+  const nodes = () => spawnSync("powershell.exe", ["-NoProfile", "-Command",
+    "Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | ForEach-Object { $_.CommandLine }"], { encoding: "utf8" }).stdout;
+  assert.equal(started, true, `started; bridge=${bridge}\nnode processes:\n${started ? "" : nodes()}`);
   launch.stopBridge(bridge);
   assert.equal(await waitFor(() => !launch.bridgeRunning(bridge)), true, "stopped");
   assert.ok(fs.existsSync(path.join(bridge, "KILLED")));
