@@ -2460,12 +2460,39 @@ local function BuildUI()
 
 	-- Bottom row: Clear, plus Resend while a message is in flight. Rename, Folder
 	-- and Delete live on each chat row in the left panel.
-	local clear = MakeButton(f, "Clear", 60, function()
+	-- Two clicks: the first arms the button ("Sure?") for a few seconds, the
+	-- second wipes the chat it was armed for.
+	local clear
+	local armed
+	clear = MakeButton(f, "Clear", 60, function()
 		local c = ActiveChat()
-		if c then wipe(c.history) end
-		WoWAI.Render()
+		if armed and c and armed == c.id then
+			armed, clear.armToken = nil, nil
+			clear:SetText("Clear")
+			wipe(c.history)
+			WoWAI.Render()
+		elseif c then
+			local token = {}
+			armed = c.id
+			clear.armToken = token
+			clear:SetText("Sure?")
+			C_Timer.After(3, function()
+				if clear.armToken == token then
+					armed = nil
+					clear:SetText("Clear")
+				end
+			end)
+		end
 	end)
 	clear:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 14, 16)
+	clear:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Clear this chat")
+		GameTooltip:AddLine("Erases this chat's messages from the window. Click twice to confirm.", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	clear:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.clear = clear
 
 	local resend = MakeButton(f, "Resend", 70, WoWAI.Resend)
 	resend:SetPoint("LEFT", clear, "RIGHT", 6, 0)

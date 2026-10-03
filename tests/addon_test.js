@@ -644,6 +644,49 @@ test('chat management commands: new, chat, rename, delete, clear, copy', () => {
   assert.equal(vm.evaluate('WoWAICopyBox.text'), 'some reply');
 });
 
+test('the Clear button needs a second click ("Sure?") within 3 seconds, resets by itself, and has a tooltip', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('WoWAI.Toggle(true)');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "keep me")');
+  vm.run(`CLEAR = nil
+    for _, f in ipairs(STUB.frames) do if f.kind == "Button" and f.text == "Clear" then CLEAR = f end end`);
+  assert.equal(vm.evaluate('CLEAR ~= nil'), 'true', 'the Clear button exists');
+  const history = () => vm.num('#WoWAIDB.chats[1].history');
+  assert.equal(history(), 1);
+  // One click only arms it.
+  vm.run('CLEAR.scripts.OnClick(CLEAR, "LeftButton")');
+  assert.equal(vm.evaluate('CLEAR.text'), 'Sure?');
+  assert.equal(history(), 1, 'the first click clears nothing');
+  // No second click: the timer puts the label back, and the next click arms again instead of clearing.
+  assert.equal(vm.evaluate('STUB.timers[#STUB.timers].delay'), '3');
+  vm.run('STUB.RunTimers()');
+  assert.equal(vm.evaluate('CLEAR.text'), 'Clear', 'label resets after the timeout');
+  vm.run('CLEAR.scripts.OnClick(CLEAR, "LeftButton")');
+  assert.equal(history(), 1, 'a click after the timeout only re-arms');
+  assert.equal(vm.evaluate('CLEAR.text'), 'Sure?');
+  // The second click clears and resets the label; the old timer must not disturb a later arming.
+  vm.run('CLEAR.scripts.OnClick(CLEAR, "LeftButton")');
+  assert.equal(history(), 0, 'the second click clears the chat');
+  assert.equal(vm.evaluate('CLEAR.text'), 'Clear');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "again")');
+  vm.run('CLEAR.scripts.OnClick(CLEAR, "LeftButton")');
+  vm.run('STUB.RunTimers()'); // the timers of the earlier armings fire; only the newest one counts
+  assert.equal(vm.evaluate('CLEAR.text'), 'Clear');
+  assert.equal(history(), 1);
+  // Arming does not carry over to another chat.
+  vm.run('CLEAR.scripts.OnClick(CLEAR, "LeftButton")');
+  vm.run('SlashCmdList.WOWAI("new Other")');
+  vm.run('CLEAR.scripts.OnClick(CLEAR, "LeftButton")');
+  assert.equal(vm.num('#WoWAIDB.chats[1].history'), 1, 'the first chat is untouched');
+  // Tooltip.
+  vm.run('CLEAR.scripts.OnEnter(CLEAR)');
+  assert.equal(vm.evaluate('GameTooltip.shown'), 'true');
+  assert.ok(vm.evaluate('GameTooltip.text').includes('Clear this chat'));
+  vm.run('CLEAR.scripts.OnLeave(CLEAR)');
+  assert.equal(vm.evaluate('GameTooltip.shown'), 'false');
+});
+
 test('chat rows: right-click opens a menu that renames or sets the folder of that chat, the trash can asks before deleting', () => {
   const vm = newVM();
   login(vm);
