@@ -85,6 +85,26 @@ test('minimap toggles, opens mentor chat, saves drag angle and clears unread on 
   assert.equal(v.get('WoWAIForeverMinimap.unreadDot.shown'), 'false');
 });
 
+test('the minimap button sits on the rim at any minimap size', () => {
+  const v = vm();
+  const radiusOf = () => Math.hypot(Number(v.get('WoWAIForeverMinimap.x')), Number(v.get('WoWAIForeverMinimap.y')));
+  // The default 140px minimap keeps the old radius of 80.
+  v.run('Minimap.width = 140; WoWAIForeverMinimap.scripts.OnShow(WoWAIForeverMinimap)');
+  assert.ok(Math.abs(radiusOf() - 80) < 1e-6);
+  // A bigger or smaller minimap moves the button with the rim (re-placed when shown again).
+  v.run('Minimap.width = 200; WoWAIForeverMinimap.scripts.OnShow(WoWAIForeverMinimap)');
+  assert.ok(Math.abs(radiusOf() - 110) < 1e-6);
+  v.run('Minimap.width = 100; WoWAIForeverMinimap.scripts.OnShow(WoWAIForeverMinimap)');
+  assert.ok(Math.abs(radiusOf() - 60) < 1e-6);
+  // A minimap that reports no size yet (early at login) falls back to the default rim.
+  v.run('Minimap.width = 0; WoWAIForeverMinimap.scripts.OnShow(WoWAIForeverMinimap)');
+  assert.ok(Math.abs(radiusOf() - 80) < 1e-6);
+  // Dragging re-places it on the rim of the current size, at the saved angle.
+  v.run('Minimap.width = 200; WoWAIForeverMinimap.x = 0; WoWAIForeverMinimap.y = 20; WoWAIForeverMinimap.scripts.OnDragStop(WoWAIForeverMinimap)');
+  assert.ok(Math.abs(radiusOf() - 110) < 1e-6);
+  assert.equal(v.get('math.floor(WoWAIForeverDB.skin.minimapAngle)'), '90');
+});
+
 test('skin off leaves upstream backdrop and creates no minimap button', () => {
   const v = vm(false);
   assert.match(v.get('WoWAIFrame.backdrop.edgeFile'), /UI-Tooltip-Border/);

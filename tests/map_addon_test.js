@@ -174,6 +174,12 @@ test('navigator shows yards and bearing, and advances on arrival', () => {
   assert.equal(vm.evaluate('WoWAINavigator.text.text'), 'no position here');
 });
 
+test('the navigator is clamped to the screen so a drag cannot lose it', () => {
+  const vm = newVM();
+  vm.run(`WoWAIMap.Sync(${LAYER})`);
+  assert.equal(vm.evaluate('WoWAINavigator.clamped'), 'true');
+});
+
 test('herb/ore nodes toggle and follow the gathering skill', () => {
   const vm = newVM();
   vm.run(`WoWAINodes = { kinds = { { "Copper Vein", "mining", 1 }, { "Tin Vein", "mining", 65 }, { "Peacebloom", "herbalism", 1 } },
