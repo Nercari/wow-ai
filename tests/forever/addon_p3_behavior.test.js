@@ -172,3 +172,30 @@ test('switch commands and context payload limits', () => {
     assert.ok(records(v).at(-1).text.length + records(v).at(-1).ctx.length < 3200);
   }
 });
+
+test('a reply that lands mid-fight is held and shown once when the fight ends', () => {
+  const v = setup();
+  v.run('SlashCmdList.WOWAI("hello")');
+  assert.notEqual(v.get('WoWAIDB.chats[1].pendingId'), '');
+  v.run(`
+    STUB.FireEvent("PLAYER_REGEN_DISABLED")
+    STUB.prints = {}
+    STUB.onLoadAddOn = function()
+      local c = WoWAIDB.chats[1]
+      WoWAI_SlotData = { now = time(), cwd = "", replies = { { chat = c.id, id = c.pendingId, status = "done", text = "held answer" } } }
+    end
+    STUB.now = STUB.now + 6
+    STUB.Tick()`);
+  v.run(`function HeldShown() local n = 0
+    for _, h in ipairs(WoWAIDB.chats[1].history) do if h.text == "held answer" then n = n + 1 end end
+    return n end`);
+  const shown = () => v.get('HeldShown()');
+  assert.equal(shown(), '0', 'nothing in the chat window during combat');
+  assert.doesNotMatch(v.get('table.concat(STUB.prints, "\\n")'), /held answer/, 'nothing in the game chat during combat');
+  assert.notEqual(v.get('WoWAIDB.chats[1].pendingId'), '', 'the chat is still waiting');
+  v.run('STUB.now = STUB.now + 6; STUB.Tick()'); // the same reply polled again must not queue twice
+  v.run('STUB.FireEvent("PLAYER_REGEN_ENABLED")');
+  assert.equal(shown(), '1', 'shown once after combat');
+  assert.match(v.get('table.concat(STUB.prints, "\\n")'), /held answer/);
+  assert.equal(v.get('WoWAIDB.chats[1].pendingId'), '');
+});

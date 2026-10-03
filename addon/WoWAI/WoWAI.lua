@@ -711,8 +711,27 @@ local function MarkAcked(id)
 	NotedBridge()
 end
 
+local ApplyReplies -- defined below
+
+-- No AI output mid-fight: a reply that lands during a lockout (combat, encounter,
+-- challenge run) waits here and is shown once when the lockout lifts.
+local held, heldHooked = {}, false
+local function HoldReply(c, r)
+	c.progress = "Reply ready. It shows when the fight ends."
+	for _, h in ipairs(held) do if h.id == r.id then return end end
+	table.insert(held, r)
+	if heldHooked then return end
+	heldHooked = true
+	WoWAIForever.On("LOCKOUT_CHANGED", function(locked)
+		if locked or #held == 0 then return end
+		local list = held
+		held = {}
+		ApplyReplies(list)
+	end)
+end
+
 -- Dispatch a list of reply records to the chats waiting for them.
-local function ApplyReplies(replies)
+ApplyReplies = function(replies)
 	local matched = false
 	for _, r in ipairs(replies or {}) do
 		local c = FindChat(r.chat)
@@ -720,14 +739,16 @@ local function ApplyReplies(replies)
 			matched = true
 			MarkAcked(r.id)
 			local denied = type(r.denied) == "table" and #r.denied > 0 and r.denied or nil
-			if r.status == "done" then
+			if (r.status == "done" or r.status == "error") and ForeverBlocked() then
+				HoldReply(c, r)
+			elseif r.status == "done" then
 				Finish(c, "assistant", r.text or "", denied, r.agent, r.summary)
 			elseif r.status == "error" then
 				Finish(c, "system", "Bridge error: " .. tostring(r.text), denied)
 			elseif r.status == "working" then
 				c.progress = r.text
 			end
-			if r.status == "done" or r.status == "error" then
+			if c.pendingId == nil then
 				for _, mod in ipairs(ForeverModules()) do if type(mod.onReply) == "function" then pcall(mod.onReply, c, r) end end
 			end
 		end
