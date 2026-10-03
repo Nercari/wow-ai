@@ -6,7 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
-- **Window layout.** A fresh install opens the window at the top centre of the screen instead of the middle, clear of the game chat. The footer line sits above the frame border instead of on it, and a long chat title is cut before the minimize button.
+- **Window layout.** A fresh install opens the window at the top centre of the screen instead of the middle, clear of the game chat. The footer line sits above the frame border instead of on it, and a long chat title is cut instead of running over the border (inside the header plaque with the default skin, before the minimize button without it).
 - **The copy box has a solid background**, so the reply underneath no longer shows through the selected text.
 - **A reply is shown once.** While the WoWAI window is open on that chat, the reply is no longer repeated in the game chat. The translation popup now opens only for translations, not for every reply in a chat named "mentor", so it no longer sits over the quest tracker after an ordinary answer.
 - **The mentor no longer hands out scripts to paste.** It gives settings and key bindings as game menu paths, one per line ("Options > Controls > Auto Loot: on"), never `/run`, `/script`, `/console` or `/dump` lines. The rule is in the mentor prompt and in the system prompt of every game chat. In the 2026-10-03 video it handed out untested scripts, one followed by the game's "blocked action" popup.

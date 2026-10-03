@@ -43,6 +43,9 @@ local function StyleHeader(parts)
 	Texture(plaque, "Interface\\DialogFrame\\UI-DialogBox-Header")
 	parts.title:ClearAllPoints()
 	parts.title:SetPoint("TOP", plaque, "TOP", 0, -14)
+	-- Keep a long chat name inside the plaque instead of running over its border.
+	parts.title:SetWidth(150)
+	parts.title:SetJustifyH("CENTER")
 	parts.title:SetFontObject("GameFontNormal")
 	parts.header = plaque
 end
@@ -269,4 +272,14 @@ WoWAIForever.On("CHAT_ROW_BUILT", function(row)
 	local hi = row:CreateTexture(nil, "HIGHLIGHT"); hi:SetAllPoints()
 	Texture(hi, "Interface\\QuestFrame\\UI-QuestTitleHighlight"); hi:SetBlendMode("ADD")
 end)
-WoWAIForever.On("COPY_BUILT", function(frame) if DB().enabled then Dialog(frame) end end)
+WoWAIForever.On("COPY_BUILT", function(frame)
+	if not DB().enabled then return end
+	Dialog(frame)
+	-- The dialog border is wider than the plain one: pull the solid fill inside it.
+	local fill = WoWAICopyFill
+	if fill then
+		fill:ClearAllPoints()
+		fill:SetPoint("TOPLEFT", frame, "TOPLEFT", 11, -11)
+		fill:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -11, 11)
+	end
+end)

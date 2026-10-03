@@ -2198,7 +2198,7 @@ local function BuildUI()
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	title:SetPoint("LEFT", dotHolder, "RIGHT", 6, 0)
 	-- Stop short of the minimize button: a long chat name is cut, not drawn over the border.
-	title:SetPoint("RIGHT", f, "RIGHT", -60, 0)
+	title:SetPoint("RIGHT", f, "TOPRIGHT", -60, -24)
 	title:SetJustifyH("LEFT")
 	title:SetWordWrap(false)
 	title:SetText("WoW AI")
@@ -2474,7 +2474,7 @@ local function BuildUI()
 	-- Reload is the fallback transport's button; it sits apart on the right and
 	-- only shows when a reload would do something (see UpdateStatus).
 	local refresh = MakeButton(f, "Reload", 70, function() SafeReload() end)
-	refresh:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -24, 24)
+	refresh:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -24, 26)
 	refresh:Hide()
 	ui.refresh = refresh
 
@@ -2504,7 +2504,7 @@ local function BuildUI()
 			end)
 		end
 	end)
-	clear:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 14, 24)
+	clear:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 14, 26)
 	clear:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
 		GameTooltip:SetText("Clear this chat")
@@ -2535,8 +2535,9 @@ local function BuildUI()
 	WoWAI.refreshAction = RefreshAction
 
 	local cwd = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	-- Sits above the frame border (which is drawn in the bottom 8 px), not on it.
-	cwd:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 16, 9)
+	-- Sits above the frame border, not on it: the default skin's dialog border
+	-- takes the bottom 11 px (the plain one 4).
+	cwd:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 16, 13)
 	cwd:SetPoint("RIGHT", f, "RIGHT", -30, 0)
 	cwd:SetJustifyH("LEFT")
 	cwd:SetWordWrap(false)
