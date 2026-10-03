@@ -13,7 +13,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 5. **Upstream.** Compare with `chelinho139/wow-ai` main; bring in useful upstream fixes by PR, keeping `forever` behaviour.
 6. **Measured improvement.** Each improvement PR names one number (a test count, a gate passed, a failure fixed) before and after.
 
-## Backlog (numbered; next free: 29)
+## Backlog (numbered; next free: 41)
 
 1. **Live gates (WOW-02).** Pedro runs `probe/PROBE.md` on the installed Forever client; agents turn the results into the gate table and switch features to their fallback where a gate fails. Needs Pedro in game.
 2. **Live column.** Fill the Live column of the coverage doc from Pedro's in-game checks, one short checklist per batch.
@@ -23,10 +23,10 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 6. **Publish (WOW-12).** Public fork and the upstream adapters PR were approved by Pedro on 2026-09-25 (GitHub only, no forum post). Publishing is external: prepare, then Pedro confirms before anything goes public.
 7. **Replies during combat** (done, PR #4). Video review 2026-10-03: two replies showed mid-fight (5:55, 6:45). Replies now wait for the fight to end.
 8. **Mentor workspace by default** (done, PR #13). The bridge started in Documents, so the agent ran as a general coding assistant and read unrelated files (0:00, 2:25, 2:55, 6:45). Start in the mentor workspace by default and warn in the window when the folder is a broad one like Documents. Metric: unrelated files read, 3+ in the video, target 0.
-9. **Permission text in game chat** (done, PR #11). A permission request prints the raw command in chat, seven lines of PowerShell (2:55, 5:55, 6:20). Show one short line instead. Metric: chat lines per request 7 → 1.
+9. **Permission text in game chat** (done, PR #11). A permission request prints the raw command in chat, seven lines of PowerShell (2:55, 5:55, 6:20). Show one short line instead. Metric: chat lines per request 7 → 1. Second video (2026-10-03, 17:17): still 5 chat lines with the raw command (7:42, 8:20); reopened as item 30.
 10. **"Blocked from an action only available to the Blizzard UI" popup** (8:00), right after pasting the agent's `/run` settings line. Cause not confirmed. Likely cause: the old `/r` shortcut tainted the chat box, and it has since been removed. Needs Pedro in game: play normally on the current build and report whether the popup appears and what was done just before. Do not test by pasting a `/run` line; the player never pastes scripts. Related to item 1.
 11. **No untested `/run` scripts from the mentor** (done, PR #15). The mentor handed out untested scripts, including key rebinding (4:55, 8:15). It should point to the game menus (Options > Keybindings) instead. Fix in the mentor prompt. Related to item 5.
-12. **Status line while waiting** (done, PR #17). Two different timers ("running 25s" and "running 17s", 0:45) and "0 actions" while six are listed (2:25). Show one timer and the right count.
+12. **Status line while waiting** (done, PR #17). Two different timers ("running 25s" and "running 17s", 0:45) and "0 actions" while six are listed (2:25). Show one timer and the right count. Second video: still two timers and two counts (1:20, 2:10, 10:52); reopened as item 32.
 13. **Reply popup covers the quest tracker** and stays up for minutes (2:55 to 4:50, 6:45 to 7:40); it also opens with a blank gap at the top. Close it by itself or keep it clear of the tracker. PR #18 stops it opening for ordinary replies (it was the translation popup); for real translations it still stays until closed.
 14. **Same reply shown three times** (done, PR #18): window, chat and popup, even with the window open (0:00). Show it once when the window is open.
 15. **Copy box is see-through** (done, PR #20; live look pending), so the selected text sits on top of the reply (7:45). Give it a solid background.
@@ -43,5 +43,21 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 26. **Dummy practice compare** (done, PR #12) (from Localog). `cmd=practice`: review two target-dummy sessions and compare active time and damage from their scorecard rows.
 27. **One-click update and launch.** Pedro asked (2026-10-03) to install, update and start without terminal commands. `WoW AI.cmd` and its desktop icon do update, install, bridge start and the reload/relaunch advice. Metric: terminal commands per update, 2 (`git pull`, `node setup.js`) plus starting the bridge → 0. Live check pending (Pedro double-clicks it).
 28. **Switch AI and model in game** (done, PR #35; live look pending). Pedro asked (2026-10-03) to pick between his available AIs from inside the game. An AI button lists the agents installed on the PC and their models; one click switches the chat. Metric: switching to another model, typed commands and a config edit plus a bridge restart → one click. Live look pending.
+
+
+Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17, 14 min 39 s; timestamps are accurate to about 5 seconds). Live looks passed in that video: starter questions (item 20, 0:30), level-up nudge (item 21, 14:27), AI switcher (item 28, 0:25 to 3:15), copy box (item 15, 1:20), footer, title and window position (items 16 and 17, 0:25).
+
+29. **Fight review is reachable** (addon half done, PR #38). Pedro asked for a review four times in four minutes and gave up (7:05 to 11:15): the mentor said "send the addon's review command" without naming it, the window had no Review button, and a typed "review" did not attach the fight times. PR #38 added the "Review last fight" button and treats a typed "review" as the command. Remaining: have the mentor name `/ai review`. Metric: tries before a review starts, 4 failed → 1.
+30. **Permissions for reading.** "Allow Bash(ls:*) & retry" did not unblock the agent (7:50, blocked again at 8:37, then "Allow PowerShell & retry" at 11:07); inferred cause: the rule does not cover a command with pipes. The mentor reads logs with its file tools, not shell commands; Allow really unblocks; chat shows one short line (reopens item 9). Metric: permission prompts in a session 3 → 0; chat lines per prompt 5 → 1.
+31. **Minimise the window when a fight starts.** The rotation reply stayed readable during a fight (5:15 to 5:20). Minimise on combat start, restore after. Metric: seconds of AI advice visible in combat, about 10 → 0.
+32. **Status line** (reopens item 12): one timer, one action count, no "5 actions, no activity seen yet", and no internal words ("#13", "Sending #16...", 1:15, 7:52).
+33. **Combat log status in the window.** A line "Combat log: on / off" read from the game, with a button the player clicks out of combat to switch it on. `/combatlog` is a toggle and Pedro switched it off again without noticing (10:30, confirmed by Pedro). Check `docs/COMPLIANCE.md` before building.
+34. **Small window fixes.** "Reply arrived. Your draft is back in the box" shows with an empty box and inside the AI's message (7:47, 7:52); the AI menu keeps the old chat name after a chat switch and is see-through (0:25, 0:30); the same reply shows in the window and in chat while the window is open (2:30); an empty chat is left behind each time an AI is tried (1:05).
+35. **Copy icon per message** instead of the "Click to copy this message" tooltip that follows the mouse and hides the text (2:45, 5:05, 7:47, 10:07).
+36. **Reply formatting and background.** Backticks and `**` show raw (7:47, 11:07); names and damage numbers show through the reply text (5:20, 7:47).
+37. **Mentor wording.** No developer talk to the player ("this folder is not a git repo", 7:02; "the shell command I tried was blocked", 8:37) and no listing of folders outside the workspace (7:42). Fix in `mentor/AGENTS.md`.
+38. **New-quest nudge.** After a quest is accepted out of combat (12:50, 14:30), a chat link "[explain this quest]", like the level-up nudge (item 21).
+39. **Quest reward question.** A link on the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks.
+40. **Follow-up buttons and session recap.** One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
 
 Add new items at the end with the next number; mark done items `(done, PR #n)` instead of deleting them.
