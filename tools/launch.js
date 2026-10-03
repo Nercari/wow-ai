@@ -1,0 +1,215 @@
+#!/usr/bin/env node
+'use strict';
+// One double-click to update, install and start WoW AI (the "WoW AI.cmd" file
+// in the repo root, or the desktop shortcut it makes on first run).
+//
+//   node tools/launch.js [--no-update] [--no-shortcut]
+//
+// 1. Update: a fast-forward `git pull` when the checkout has no local edits.
+//    No network, no git, or local edits: it says so and carries on.
+// 2. Install: runs setup.js (safe to re-run; keeps config.json and the slots).
+// 3. Bridge: starts it in its own minimized window, or restarts it when the
+//    update changed its code. Left alone when it is running and up to date.
+// 4. Game: says whether to /reload, relaunch, or just open it. When the game
+//    isn't running it opens the Battle.net app; it never starts or touches the
+//    game itself.
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync, spawn } = require('child_process');
+
+const ROOT = path.join(__dirname, '..');
+const BRIDGE = path.join(ROOT, 'bridge');
+const ADDON_SRC = path.join(ROOT, 'addon', 'WoWAI');
+const CONFIG = path.join(BRIDGE, 'config.json');
+const SHORTCUT_MARK = path.join(BRIDGE, '.shortcut-made');
+const WIN = process.platform === 'win32';
+
+function run(cmd, args, opts = {}) {
+  const r = spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true, timeout: 120000, ...opts });
+  return { ok: !r.error && r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim(), missing: r.error?.code === 'ENOENT' };
+}
+
+// Fast-forward only, and only on a clean checkout: never merges, never
+// overwrites a local edit. Returns { changed, files, note }.
+function update(root) {
+  const git = (...a) => run('git', ['-C', root, ...a]);
+  if (!fs.existsSync(path.join(root, '.git'))) return { changed: false, files: [], note: 'not a git checkout; skipping the update' };
+  const head = git('rev-parse', 'HEAD');
+  if (head.missing) return { changed: false, files: [], note: 'git is not installed; skipping the update' };
+  if (!head.ok) return { changed: false, files: [], note: 'git could not read this checkout; skipping the update' };
+  const dirty = git('status', '--porcelain', '--untracked-files=no');
+  if (dirty.out) return { changed: false, files: [], note: 'this folder has local edits, so it was not updated (nothing was changed)' };
+  const pull = git('pull', '--ff-only', '--quiet');
+  if (!pull.ok) return { changed: false, files: [], note: `could not update (${(pull.err.split('\n')[0] || 'no network?')}); using the version you have` };
+  const after = git('rev-parse', 'HEAD').out;
+  if (after === head.out) return { changed: false, files: [], note: 'already up to date' };
+  const files = git('diff', '--name-only', head.out, after).out.split('\n').filter(Boolean);
+  const log = git('log', '--oneline', `${head.out}..${after}`).out.split('\n').filter(Boolean);
+  return { changed: true, files, note: `updated (${log.length} change${log.length === 1 ? '' : 's'})` };
+}
+
+// True when an installed addon file is missing or differs from the repo copy.
+// Inbox.lua is skipped: the bridge owns the installed one.
+function addonDiffers(src, dest) {
+  for (const f of fs.readdirSync(src)) {
+    if (f === 'Inbox.lua') continue;
+    const target = path.join(dest, f);
+    if (!fs.existsSync(target)) return true;
+    if (!fs.readFileSync(path.join(src, f)).equals(fs.readFileSync(target))) return true;
+  }
+  return false;
+}
+
+// "slots: 200  files created: 15000  already present: 0" from install-slots.js.
+function slotsCreated(setupOutput) {
+  const m = /files created: (\d+)/.exec(setupOutput);
+  return m ? Number(m[1]) : 0;
+}
+
+// What to do with the bridge and what to tell the player about the game.
+function plan({ bridgeRunning, bridgeChanged, gameRunning, addonChanged, newFiles }) {
+  const bridge = !bridgeRunning ? 'start' : bridgeChanged ? 'restart' : 'keep';
+  let game;
+  if (!gameRunning) game = 'open';
+  else if (newFiles) game = 'relaunch';
+  else if (addonChanged) game = 'reload';
+  else game = 'ready';
+  return { bridge, game };
+}
+
+const GAME_TEXT = {
+  open: 'Open WoW: Forever as usual, then type /ai in game.',
+  relaunch: 'The game is open but new addon files were added: quit WoW completely and open it again.',
+  reload: 'The game is open and the addon was updated: type /reload in game.',
+  ready: 'The game is open and up to date: type /ai in game.',
+};
+
+// --- Windows helpers -------------------------------------------------------
+
+function powershell(script) {
+  return run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script]);
+}
+
+function bridgeRunning(bridgeDir = BRIDGE) {
+  const r = run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(bridgeDir, 'stop-bridge.ps1'), '-ListOnly']);
+  return r.ok && /\d/.test(r.out);
+}
+
+function stopBridge(bridgeDir = BRIDGE) {
+  run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(bridgeDir, 'stop-bridge.ps1')]);
+}
+
+function startBridge(bridgeDir = BRIDGE) {
+  // --on: a launch means "AI on", even if it was switched off with wowai-kill.
+  spawn('cmd.exe', ['/c', 'start', '"WoW AI bridge"', '/min', 'cmd', '/k', 'node', `"${path.join(bridgeDir, 'supervisor.js')}"`, '--on'],
+    { cwd: bridgeDir, detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
+}
+
+function gameRunning(processName) {
+  const r = run('tasklist', ['/FI', `IMAGENAME eq ${processName}.exe`, '/NH']);
+  return r.ok && r.out.toLowerCase().includes(`${processName.toLowerCase()}.exe`);
+}
+
+// Opens the Battle.net app (it only brings the window forward if it is already
+// open). The player presses Play there; nothing here starts the game.
+function openBattleNet() {
+  const exe = [process.env['ProgramFiles(x86)'], process.env.ProgramFiles]
+    .filter(Boolean).map(p => path.join(p, 'Battle.net', 'Battle.net Launcher.exe')).find(p => fs.existsSync(p));
+  if (!exe) return false;
+  spawn(exe, [], { detached: true, stdio: 'ignore' }).unref();
+  return true;
+}
+
+// A "WoW AI" icon on the desktop pointing at WoW AI.cmd. Made once: if the
+// player deletes it, it stays deleted (bridge/.shortcut-made remembers).
+// desktop and mark are for the tests.
+function makeShortcut({ desktop = '', mark = SHORTCUT_MARK } = {}) {
+  if (fs.existsSync(mark)) return null;
+  const target = path.join(ROOT, 'WoW AI.cmd');
+  const q = s => `'${s.replace(/'/g, "''")}'`;
+  const r = powershell([
+    desktop ? `$d = ${q(desktop)}` : `$d = [Environment]::GetFolderPath('Desktop')`,
+    `$l = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d 'WoW AI.lnk'))`,
+    `$l.TargetPath = ${q(target)}`,
+    `$l.WorkingDirectory = ${q(ROOT)}`,
+    `$l.WindowStyle = 7`,
+    `$l.Description = 'Update and start WoW AI'`,
+    `$l.Save()`,
+    `Write-Output $d`,
+  ].join('; '));
+  if (!r.ok) return null;
+  fs.writeFileSync(mark, new Date().toISOString() + '\n');
+  return r.out;
+}
+
+// --- main ------------------------------------------------------------------
+
+// Success: the window closes by itself. Failure: it waits for Enter so the
+// message can be read (exit 0 then, so WoW AI.cmd doesn't pause a second time).
+function closeSoon(code) {
+  if (!process.stdin.isTTY) process.exit(code);
+  if (code !== 0) {
+    console.log('\nPress Enter to close this window.');
+    process.stdin.once('data', () => process.exit(0));
+    return;
+  }
+  console.log('\nThis window closes in 10 seconds.');
+  setTimeout(() => process.exit(0), 10000);
+}
+
+function main(argv) {
+  console.log('WoW AI\n');
+  const firstInstall = !fs.existsSync(CONFIG);
+
+  const up = argv.includes('--no-update') ? { changed: false, files: [], note: 'skipped (--no-update)' } : update(ROOT);
+  console.log(`update : ${up.note}`);
+
+  let addonChanged = true;
+  if (!firstInstall) {
+    try { addonChanged = addonDiffers(ADDON_SRC, path.join(JSON.parse(fs.readFileSync(CONFIG, 'utf8')).addonDir, 'WoWAI')); } catch {}
+  }
+
+  console.log('install: checking the addon in the game folder...');
+  const setup = run(process.execPath, [path.join(ROOT, 'setup.js')], { cwd: ROOT, timeout: 600000 });
+  if (!setup.ok) {
+    console.log((setup.err || setup.out).replace(/^/gm, '  '));
+    console.log('\nInstall failed; the message above says why. Nothing was started.');
+    return closeSoon(1);
+  }
+  const newFiles = slotsCreated(setup.out) > 0;
+  console.log(`install: ${firstInstall ? 'installed' : addonChanged ? 'addon updated' : 'addon already up to date'}${newFiles ? ', new slot files added' : ''}`);
+
+  if (!WIN) {
+    console.log('\nStart the bridge with: npm start');
+    return closeSoon(0);
+  }
+
+  const cfg = JSON.parse(fs.readFileSync(CONFIG, 'utf8'));
+  const bridgeChanged = up.files.some(f => f.startsWith('bridge/') || f.startsWith('mentor/') || f === 'package.json');
+  const p = plan({
+    bridgeRunning: bridgeRunning(),
+    bridgeChanged,
+    gameRunning: gameRunning((cfg.capture && cfg.capture.processName) || 'WowB'),
+    addonChanged,
+    newFiles,
+  });
+
+  if (p.bridge === 'restart') { stopBridge(); startBridge(); console.log('bridge : restarted with the new version (minimized window "WoW AI bridge")'); }
+  else if (p.bridge === 'start') { startBridge(); console.log('bridge : started (minimized window "WoW AI bridge"; close it to stop the AI)'); }
+  else console.log('bridge : already running');
+
+  if (!argv.includes('--no-shortcut')) {
+    const desk = makeShortcut();
+    if (desk) console.log(`shortcut: added "WoW AI" to your desktop; next time just double-click it`);
+  }
+
+  if (p.game === 'open' && openBattleNet()) console.log('game   : opened the Battle.net app; press Play there.');
+  console.log(`\n${GAME_TEXT[p.game]}`);
+  return closeSoon(0);
+}
+
+if (require.main === module) main(process.argv.slice(2));
+
+module.exports = { update, addonDiffers, slotsCreated, plan, GAME_TEXT, bridgeRunning, startBridge, stopBridge, gameRunning, makeShortcut };

@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 ### Added
 
 - **Switch AI and model in game with a click.** An **AI** button under the chat (also **AI / model...** on the chat row's right-click menu) lists the agents installed on your PC and the models each offers, and switches the chat with one click. Agents the PC doesn't have are not listed. Claude offers `opus`, `sonnet` and `haiku`; any agent can offer more with `agents.<id>.models` in `config.json`. A different agent starts a fresh session; a different model of the same agent carries on the conversation. Typed form: `/ai agent claude sonnet`.
+- **One double-click to update and start (Windows).** `WoW AI.cmd` in the repo folder, and the **WoW AI** desktop icon its first run creates, update the checkout (fast-forward only, skipped with local edits), re-install the addon, start or restart the bridge in a minimized window, and say whether the game needs `/reload`, a relaunch, or nothing. With the game closed it opens the Battle.net app; it never starts the game itself. `bridge\stop-bridge.ps1 -ListOnly` lists the running bridge without stopping it, and `bridge\start-window.cmd` starts the bridge by full path so the stop script finds it.
 
 ### Changed
 
@@ -24,6 +25,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- `bridge\wowai-kill.vbs` (and `bridge\stop-bridge.ps1`) now actually stop the bridge. They passed each process's command line to Windows as ANSI text to a function that reads Unicode, so no command line ever parsed and nothing matched. A bridge running in its own window (`start-window.cmd`, the launcher) is stopped together with that window instead of leaving it open at a prompt.
 - While the agent works the window shows one timer, in the status line. The "working..." bubble carried a second one that went stale ("running 25s" next to "running 17s"). The action count is never lower than the number of actions listed ("0 actions" above six lines when the sound channel is off).
 - A permission request is one short line (the first action, cut to its first line, plus a count) instead of the raw command, which printed seven lines of PowerShell into the game chat. The Allow button still lists every rule it grants.
 - A `/wow-ai reload` asked for during combat no longer calls `ReloadUI()` when combat ends (the game blocks it outside a keypress or click and blamed the addon); it reloads on your first keypress after combat.

@@ -123,6 +123,10 @@ Run `bridge\start-hidden.vbs` to start the bridge without a console window. Pass
 
 ### Updating
 
+Double-click **WoW AI** on your desktop (or `WoW AI.cmd` in the repo folder). It updates, re-installs the addon, restarts the bridge if its code changed, and tells you whether the game needs `/reload` or a relaunch. It only fast-forwards: a folder with local edits is left as it is and the window says so. The first run creates the desktop icon; delete it and it stays deleted.
+
+By hand:
+
 ```powershell
 cd C:\Users\<you>\Documents\wow-ai
 git pull

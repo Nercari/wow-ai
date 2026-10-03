@@ -41,6 +41,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 24. **Death file shows only incoming lines** (done, PR #9). `.death.txt` also lists hits the player dealt (the destination test matches the player as source). Small fix with a real-format test fixture.
 25. **Warlock rubric** (done, PR #10) (from WoWAnalyzer's per-spec checklists). `mentor/rubrics/warlock.md` with uptime, cooldown and idle-time checks the mentor can prove from a log slice, every rule cited. Other classes later.
 26. **Dummy practice compare** (done, PR #12) (from Localog). `cmd=practice`: review two target-dummy sessions and compare active time and damage from their scorecard rows.
+27. **One-click update and launch.** Pedro asked (2026-10-03) to install, update and start without terminal commands. `WoW AI.cmd` and its desktop icon do update, install, bridge start and the reload/relaunch advice. Metric: terminal commands per update, 2 (`git pull`, `node setup.js`) plus starting the bridge → 0. Live check pending (Pedro double-clicks it).
 
 28. **Switch AI and model in game** (done, PR #35; live look pending). Pedro asked (2026-10-03) to pick between his available AIs from inside the game. An AI button lists the agents installed on the PC and their models; one click switches the chat. Metric: switching to another model, typed commands and a config edit plus a bridge restart → one click. Live look pending.
 

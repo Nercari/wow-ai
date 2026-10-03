@@ -1,3 +1,6 @@
+# Stops this repo's bridge (supervisor.js and bridge.js) and writes bridge\KILLED.
+# -ListOnly prints the matching process ids instead and changes nothing.
+param([switch]$ListOnly)
 $ErrorActionPreference = 'SilentlyContinue'
 
 $bridgeDir = [IO.Path]::GetFullPath($PSScriptRoot)
@@ -12,7 +15,9 @@ if (-not ('CommandLineParser' -as [type])) {
 using System;
 using System.Runtime.InteropServices;
 public static class CommandLineParser {
-    [DllImport("shell32.dll", SetLastError = true)]
+    // Unicode: without it the command line is passed as ANSI bytes and never parses,
+    // so no process matched and the bridge was never stopped.
+    [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     public static extern IntPtr CommandLineToArgvW(string commandLine, out int argc);
     [DllImport("kernel32.dll")]
     public static extern IntPtr LocalFree(IntPtr memory);
@@ -54,10 +59,18 @@ foreach ($process in $candidates) {
         continue
     }
     if ($targets -contains $resolved) {
+        if ($ListOnly) { Write-Output $process.ProcessId; continue }
+        # A bridge window (start-window.cmd, the launcher) is a "cmd /k node ...supervisor.js"
+        # that would stay open at a prompt: stop that cmd instead, which takes node with it.
+        $victim = $process.ProcessId
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $($process.ParentProcessId)"
+        if ($parent -and $parent.Name -eq 'cmd.exe' -and $parent.CommandLine -like '*supervisor.js*') { $victim = $parent.ProcessId }
         # /T: the agents the bridge started die with it.
-        & taskkill.exe /PID $process.ProcessId /T /F | Out-Null
+        & taskkill.exe /PID $victim /T /F | Out-Null
     }
 }
+
+if ($ListOnly) { exit 0 }
 
 $killedPath = Join-Path $bridgeDir 'KILLED'
 $payload = @{ at = [DateTime]::UtcNow.ToString('o'); by = 'wowai-kill' } | ConvertTo-Json -Compress
