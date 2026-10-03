@@ -13,7 +13,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 5. **Upstream.** Compare with `chelinho139/wow-ai` main; bring in useful upstream fixes by PR, keeping `forever` behaviour.
 6. **Measured improvement.** Each improvement PR names one number (a test count, a gate passed, a failure fixed) before and after.
 
-## Backlog (numbered; next free: 22)
+## Backlog (numbered; next free: 27)
 
 1. **Live gates (WOW-02).** Pedro runs `probe/PROBE.md` on the installed Forever client; agents turn the results into the gate table and switch features to their fallback where a gate fails. Needs Pedro in game.
 2. **Live column.** Fill the Live column of the coverage doc from Pedro's in-game checks, one short checklist per batch.
@@ -36,5 +36,10 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 19. **Settings as a menu checklist.** The mentor gives settings as menu paths the player ticks ("Options > Controls > Auto Loot: on") instead of scripts. Avoids the popups at 7:55 and 8:00. Builds on item 11.
 20. **Starter questions for a new character.** A first-run card with four questions fitted to class and level (0:00).
 21. **Level-up nudge.** After the fight in which the player levels up, offer "what changes at this level?" (6:20). Out of combat only; extends the level re-run from WOW-11.
+22. **Death recap** (from Details! and Blizzard's death recap; see `docs/similar-addons-2026-10-03.md`). Recap lines at the top of `.death.txt` (done, PR #6).
+23. **Health before each hit.** Add the player's health before each hit and the overkill of the killing blow to the death recap, read from the advanced log block. Needs a real Forever log with advanced logging (item 1) to confirm the field layout.
+24. **Death file shows only incoming lines.** `.death.txt` also lists hits the player dealt (the destination test matches the player as source). Small fix with a real-format test fixture.
+25. **Warlock rubric** (from WoWAnalyzer's per-spec checklists). `mentor/rubrics/warlock.md` with uptime, cooldown and idle-time checks the mentor can prove from a log slice, every rule cited. Other classes later.
+26. **Dummy practice compare** (from Localog). `cmd=practice`: review two target-dummy sessions and compare active time and damage from their scorecard rows.
 
 Add new items at the end with the next number; mark done items `(done, PR #n)` instead of deleting them.
