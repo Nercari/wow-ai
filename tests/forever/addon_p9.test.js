@@ -42,6 +42,9 @@ test('skin applies classic frame art and missing textures safely fall back', () 
   assert.equal(v.get('STUB.missingHit'), 'true');
   assert.equal(v.get('WoWAIForeverMinimap ~= nil'), 'true');
   assert.equal(v.get('WoWAIForeverMinimap.unreadDot.shown'), 'false');
+  // The copy box's solid fill sits inside the wider dialog border.
+  v.run('WoWAI.ShowCopy("x")');
+  assert.equal(v.get('WoWAICopyFill.x'), '-11');
 });
 
 test('speakers use class, gold and system colours', () => {
@@ -86,6 +89,8 @@ test('skin off leaves upstream backdrop and creates no minimap button', () => {
   const v = vm(false);
   assert.match(v.get('WoWAIFrame.backdrop.edgeFile'), /UI-Tooltip-Border/);
   assert.equal(v.get('WoWAIForeverMinimap == nil'), 'true');
+  v.run('WoWAI.ShowCopy("x")');
+  assert.equal(v.get('WoWAICopyFill.x'), '-4');
 });
 
 test('keys never bind anything; the hint names free and taken defaults once', () => {

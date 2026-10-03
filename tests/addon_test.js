@@ -413,6 +413,19 @@ test('a denied reply shows Allow, and Allow resends with the rules as flags', ()
   assert.equal(rec.id, id + 1);
 });
 
+test('the window opens at the top centre on a fresh install and where it was left afterwards', () => {
+  let vm = newVM();
+  login(vm);
+  assert.equal(vm.num('WoWAIFrame.x'), 0);
+  assert.equal(vm.num('WoWAIFrame.y'), -40, 'clear of the game chat');
+
+  vm = newVM();
+  vm.run('WoWAIDB = { settings = { point = "LEFT", relPoint = "LEFT", x = 30, y = 12 } }');
+  login(vm);
+  assert.equal(vm.num('WoWAIFrame.x'), 30);
+  assert.equal(vm.num('WoWAIFrame.y'), 12);
+});
+
 test('a reply is shown once: no chat echo while its window is open', () => {
   const vm = newVM();
   login(vm);
