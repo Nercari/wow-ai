@@ -349,6 +349,7 @@ local function BuildNavigator()
 	local p = DB().navPos
 	if p then nav:SetPoint(p[1], UIParent, p[1], p[2], p[3]) else nav:SetPoint("TOP", UIParent, "TOP", 0, -120) end
 	nav:SetMovable(true)
+	nav:SetClampedToScreen(true) -- a drag can't lose it off screen
 	nav:EnableMouse(true)
 	nav:RegisterForDrag("LeftButton")
 	nav:SetScript("OnDragStart", nav.StartMoving)
