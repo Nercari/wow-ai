@@ -8,7 +8,7 @@ const { spawnSync } = require("node:child_process");
 const TOOL = path.resolve(__dirname, "../../tools/slice-fight.js");
 const ts = (n) => `1/2/2026 03:04:${String(n).padStart(2, "0")}.000`;
 function logLine(n, event, src = "Other-Realm", dst = "Other-Realm") {
-  return `${ts(n)}  ${event},Creature-0-1,${JSON.stringify(src)},0x511,Player-1,${JSON.stringify(dst)},0x511`;
+  return `${ts(n)}  ${event},Creature-0-1,${JSON.stringify(src)},0x511,0x0,Player-1,${JSON.stringify(dst)},0x511,0x0`;
 }
 async function fixture(t, lines) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "slice-"));
@@ -228,6 +228,22 @@ test("death file starts with a recap of who hit the player, from the dry-run log
   assert.equal(lines[3], '# taken source="Defias Pillager",spell="Fireball",hits=4,damage=308,share=96%');
   assert.equal(lines[4], '# taken source="Defias Pillager",spell="Melee",hits=1,damage=12,share=4%');
   assert.match(lines[5], /^9\/25\/2026 /);
+});
+test("death file keeps only events whose destination is the player", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "slice-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const out = path.join(dir, "out.log");
+  const r = spawnSync(
+    process.execPath,
+    [TOOL, "--logs", path.resolve(__dirname, "../fixtures/dryrun/Logs"), "--start", "2026-09-25T20:00:20", "--end", "2026-09-25T20:00:43",
+      "--player", "Brakka-Testrealm", "--out", out, "--death", "2026-09-25T20:00:42.600"],
+    { encoding: "utf8" },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  const raw = (await fs.readFile(out + ".death.txt", "utf8")).split("\n").filter((l) => /^\d/.test(l));
+  assert.equal(raw.length, 5);
+  for (const l of raw) assert.match(l, /,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,/);
+  assert.equal(raw.some((l) => /,Player-4395-0ABC1234,"Brakka-Testrealm",0x511,0x0,Creature/.test(l)), false);
 });
 test("recap reads amounts after the advanced block, environment and heals, and flags unreadable amounts", () => {
   const { recap } = require(TOOL);

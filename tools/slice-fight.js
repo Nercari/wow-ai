@@ -233,6 +233,9 @@ function recap(deathLines, player, advanced, deathAt) {
   }
   return out;
 }
+function toPlayer(event, player) {
+  return fields(event)[6] === player;
+}
 function isPlayer(line, player) {
   return line.includes(`"${player}"`);
 }
@@ -279,8 +282,7 @@ async function run(o) {
         t <= deathAt &&
         isPlayer(line, o.player)
       ) {
-        const dest = line.includes(`,"${o.player}"`);
-        if (dest && (DAMAGE.test(event) || HEAL.test(event)))
+        if ((DAMAGE.test(event) || HEAL.test(event)) && toPlayer(event, o.player))
           deathLines.push(line);
       }
       if (
@@ -294,7 +296,7 @@ async function run(o) {
         t <= deathAt &&
         isPlayer(line, o.player) &&
         DAMAGE.test(event) &&
-        line.includes(`,"${o.player}"`)
+        toPlayer(event, o.player)
       )
         deathDamage = line;
     }
