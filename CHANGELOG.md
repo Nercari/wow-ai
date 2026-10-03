@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- **The copy box has a solid background**, so the reply underneath no longer shows through the selected text.
 - **A reply is shown once.** While the WoWAI window is open on that chat, the reply is no longer repeated in the game chat. The translation popup now opens only for translations, not for every reply in a chat named "mentor", so it no longer sits over the quest tracker after an ordinary answer.
 - **The mentor no longer hands out scripts to paste.** It gives settings and key bindings as game menu paths, one per line ("Options > Controls > Auto Loot: on"), never `/run`, `/script`, `/console` or `/dump` lines. The rule is in the mentor prompt and in the system prompt of every game chat. In the 2026-10-03 video it handed out untested scripts, one followed by the game's "blocked action" popup.
 - **Chats start in the mentor workspace by default.** With no folder chosen, or when the start folder or `defaultCwd` is a broad one (Documents, Desktop, Downloads, your home folder, a drive root), the bridge now works in `wow-mentor` next to the repo and creates it from the `mentor/` template on first use. Before, a bridge started in Documents ran the agent as a general coding assistant that read unrelated files. A broad folder named on purpose still works and adds a one-line warning to each reply. `node setup.js` leaves `defaultCwd` empty unless you pass `--project`.

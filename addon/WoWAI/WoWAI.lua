@@ -1936,6 +1936,12 @@ function WoWAI.ShowCopy(text)
 		cf:SetBackdrop(BACKDROP)
 		cf:SetBackdropColor(0.05, 0.05, 0.07, 0.97)
 		cf:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+		-- The tooltip backdrop texture is see-through whatever its colour: a solid
+		-- fill keeps the reply underneath from showing through the selected text.
+		local fill = cf:CreateTexture("WoWAICopyFill", "BACKGROUND")
+		fill:SetPoint("TOPLEFT", cf, "TOPLEFT", 4, -4)
+		fill:SetPoint("BOTTOMRIGHT", cf, "BOTTOMRIGHT", -4, 4)
+		fill:SetColorTexture(0.05, 0.05, 0.07, 1)
 		tinsert(UISpecialFrames, "WoWAICopy")
 
 		local t = cf:CreateFontString(nil, "OVERLAY", "GameFontNormal")

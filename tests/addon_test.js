@@ -682,6 +682,7 @@ test('chat management commands: new, chat, rename, delete, clear, copy', () => {
   vm.run('WoWAI.ShowCopy("some reply")');
   assert.equal(vm.evaluate('WoWAICopy.shown'), 'true');
   assert.equal(vm.evaluate('WoWAICopyBox.text'), 'some reply');
+  assert.equal(vm.num('WoWAICopyFill.color[4]'), 1, 'the copy box has a solid background');
 });
 
 test('the Clear button needs a second click ("Sure?") within 3 seconds, resets by itself, and has a tooltip', () => {
