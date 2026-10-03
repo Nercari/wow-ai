@@ -81,8 +81,11 @@ function claudeParser() {
         const denials = Array.isArray(ev.permission_denials) ? ev.permission_denials : [];
         if (denials.length) {
           out.denied = [...new Set(denials.map(ruleFor))];
-          const list = denials.map(d => d.tool_name + (d.tool_input && d.tool_input.command ? ': ' + d.tool_input.command : '')).join('\n  ');
-          out.notes.push(`Claude needed ${denials.length} action(s) that aren't allowed yet:\n  ${list}\nUse the Allow button below to permit them and let it continue.`);
+          // One short line: the game chat prints this note, and a raw multi-line command floods it.
+          const d0 = denials[0];
+          const first = d0.tool_name + (d0.tool_input && d0.tool_input.command ? ': ' + firstLine(d0.tool_input.command) : '');
+          const more = denials.length > 1 ? ` (+${denials.length - 1} more)` : '';
+          out.notes.push(`Claude needs your OK for ${denials.length} action(s): ${first}${more}. Click Allow in the window to continue.`);
         }
         out.done = { text, error: !!ev.is_error };
       }
@@ -136,7 +139,7 @@ function codexParser() {
           const line = codexItemLine(item);
           if (line && !shown.has(item.id)) out.progress.push(line);
           if (item.type === 'command_execution' && item.status === 'declined') {
-            out.notes.push(`Codex was not allowed to run: ${firstLine(shellInner(item.command))}\nRaise "permissionMode" for codex in bridge/config.json (acceptEdits lets it edit the project, bypassPermissions lifts the sandbox) if it should have been.`);
+            out.notes.push(`Codex was not allowed to run: ${firstLine(shellInner(item.command))}. Raise "permissionMode" for codex in bridge/config.json (acceptEdits lets it edit the project, bypassPermissions lifts the sandbox) if it should have been.`);
           }
         }
       } else if (ev.type === 'turn.completed') {
@@ -253,7 +256,7 @@ function grokParser() {
             const c = calls.get(String(ev.toolCallId || ''));
             if (c && c.rule) {
               out.denied.push(c.rule);
-              out.notes.push(`Grok was not allowed to: ${c.line}\n${snippet(why).replace(/\.\.\.$/, '')}\nUse the Allow button below to permit it and let it continue.`);
+              out.notes.push(`Grok was not allowed to: ${c.line} (${snippet(why).replace(/\.\.\.$/, '')}). Click Allow in the window to continue.`);
             }
           }
           break;

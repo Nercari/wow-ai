@@ -153,7 +153,12 @@ test('Claude stream: tool calls and text become progress, the result carries the
   r = p.feed({ type: 'result', session_id: 'sess-1', is_error: false, result: 'Done.', permission_denials: [{ tool_name: 'Bash', tool_input: { command: 'cargo build' } }, { tool_name: 'WebSearch' }] });
   assert.deepEqual(r.done, { text: 'Done.', error: false });
   assert.deepEqual(r.denied, ['Bash(cargo:*)', 'WebSearch']);
-  assert.ok(r.notes[0].includes('2 action(s)') && r.notes[0].includes('Bash: cargo build'));
+  assert.ok(r.notes[0].includes('2 action(s)') && r.notes[0].includes('Bash: cargo build (+1 more)'));
+  // A multi-line command stays one short line in the note the game chat prints.
+  const ps = A.claudeParser().feed({ type: 'result', result: 'x', permission_denials: [{ tool_name: 'PowerShell', tool_input: { command: 'Get-ChildItem C:\\Users |\n  Where-Object { $_.Length -gt 1 } |\n  Select-Object Name\n' + 'x'.repeat(400) } }] });
+  assert.equal(ps.notes.length, 1);
+  assert.ok(!ps.notes[0].includes('\n') && ps.notes[0].length < 220, ps.notes[0]);
+  assert.ok(ps.notes[0].includes('PowerShell: Get-ChildItem C:\\Users |.'));
   const err = A.claudeParser().feed({ type: 'result', is_error: true, result: 'boom' });
   assert.deepEqual(err.done, { text: 'boom', error: true });
 });
@@ -178,7 +183,7 @@ test('Codex stream: thread id, one line per item, the last agent message is the 
   assert.deepEqual(feed({ type: 'item.started', item: { id: 'i5', type: 'mcp_tool_call', server: 'fs', tool: 'list', status: 'in_progress' } }).progress, ['tool: fs.list']);
   const declined = feed({ type: 'item.completed', item: { id: 'i6', type: 'command_execution', command: 'git push', status: 'declined' } });
   assert.deepEqual(declined.progress, ['$ git push']);
-  assert.ok(declined.notes[0].startsWith('Codex was not allowed to run: git push'));
+  assert.ok(declined.notes[0].startsWith('Codex was not allowed to run: git push. ') && !declined.notes[0].includes('\n'));
   assert.deepEqual(feed({ type: 'item.completed', item: { id: 'i7', type: 'agent_message', text: 'First draft of the answer.' } }).progress, ['First draft of the answer.']);
   assert.deepEqual(feed({ type: 'item.completed', item: { id: 'i8', type: 'agent_message', text: 'All done: tests pass.' } }).progress, ['All done: tests pass.']);
   assert.deepEqual(feed({ type: 'item.completed', item: { id: 'i9', type: 'error', message: 'rate limited once' } }).notes, ['rate limited once']);
@@ -255,8 +260,8 @@ test('Grok stream as Grok Build 1.0.41 prints it: tool inputs, a classifier refu
   // The classifier refusal: status failed plus a "was not executed" line.
   const blocked = p.feed({ type: 'tool_call_update', toolCallId: 'c5', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'Tool `run_terminal_command` was not executed: Auto mode blocked this action (rm of a named non-scratch file is irreversible deletion and must wait). Take a safer approach that stays within what the user asked for; do not retry this exact action.' } }], rawOutput: null });
   assert.deepEqual(blocked.denied, ['Bash(rm:*)']);
-  assert.ok(blocked.notes[0].startsWith('Grok was not allowed to: $ rm victim.txt\nAuto mode blocked this action'), blocked.notes[0]);
-  assert.ok(blocked.notes[0].endsWith('Use the Allow button below to permit it and let it continue.'));
+  assert.ok(blocked.notes[0].startsWith('Grok was not allowed to: $ rm victim.txt (Auto mode blocked this action'), blocked.notes[0]);
+  assert.ok(blocked.notes[0].endsWith('Click Allow in the window to continue.') && !blocked.notes[0].includes('\n'));
   // A deny rule.
   p.feed({ type: 'tool_call', toolCallId: 'c6', title: 'run_terminal_command', kind: 'execute', toolName: 'run_terminal_command', rawInput: { command: 'touch probe-deny.txt' } });
   const denied = p.feed({ type: 'tool_call_update', toolCallId: 'c6', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'Tool `run_terminal_command` was not executed: Denied by permission policy: deny rule on bash matching "touch *"' } }] });
