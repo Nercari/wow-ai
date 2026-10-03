@@ -5,7 +5,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { update, addonDiffers, slotsCreated, plan, GAME_TEXT } = require("../../tools/launch");
+const launch = require("../../tools/launch");
+const { update, addonDiffers, slotsCreated, plan, GAME_TEXT } = launch;
 
 function tmp(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "launch-"));
@@ -144,7 +145,7 @@ test("the bridge window starts supervisor.js by full path, so stop-bridge.ps1 ca
   const s = fs.readFileSync(path.resolve(__dirname, "../../bridge/start-window.cmd"), "utf8");
   assert.match(s, /node "%~dp0supervisor\.js"/);
   const launch = fs.readFileSync(path.resolve(__dirname, "../../tools/launch.js"), "utf8");
-  assert.match(launch, /path\.join\(BRIDGE, 'supervisor\.js'\)/);
+  assert.match(launch, /path\.join\(bridgeDir, 'supervisor\.js'\)/);
 });
 
 test("the launcher never starts the game executable itself", () => {
@@ -153,4 +154,50 @@ test("the launcher never starts the game executable itself", () => {
   const spawned = [...launch.matchAll(/\bspawn\(([^,]+),/g)].map((m) => m[1].trim());
   assert.deepEqual(spawned, ["'cmd.exe'", "exe"]);
   assert.match(launch, /const exe = [^;]*'Battle\.net Launcher\.exe'/s);
+});
+
+// The Windows-only parts, run for real on the Windows CI runner.
+const WIN = { skip: process.platform !== "win32" && "Windows only" };
+
+async function waitFor(check, ms = 15000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (check()) return true;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return check();
+}
+
+test("Windows: the bridge window starts, is found by stop-bridge.ps1 -ListOnly, and stops", WIN, async (t) => {
+  // A folder with spaces, like "AI Projects", and a stand-in supervisor.js.
+  const bridge = path.join(tmp(t), "wow ai copy", "bridge");
+  fs.mkdirSync(bridge, { recursive: true });
+  fs.copyFileSync(path.resolve(__dirname, "../../bridge/stop-bridge.ps1"), path.join(bridge, "stop-bridge.ps1"));
+  fs.writeFileSync(path.join(bridge, "supervisor.js"), "setInterval(() => {}, 1000);\n");
+  t.after(() => launch.stopBridge(bridge));
+  assert.equal(launch.bridgeRunning(bridge), false);
+  launch.startBridge(bridge);
+  assert.equal(await waitFor(() => launch.bridgeRunning(bridge)), true, "started");
+  launch.stopBridge(bridge);
+  assert.equal(await waitFor(() => !launch.bridgeRunning(bridge)), true, "stopped");
+  assert.ok(fs.existsSync(path.join(bridge, "KILLED")));
+});
+
+test("Windows: gameRunning sees a running process by name", WIN, () => {
+  assert.equal(launch.gameRunning("node"), true);
+  assert.equal(launch.gameRunning("NoSuchGameHere"), false);
+});
+
+test("Windows: the desktop shortcut points at WoW AI.cmd and is made only once", WIN, (t) => {
+  const desktop = path.join(tmp(t), "Desk top");
+  fs.mkdirSync(desktop);
+  const mark = path.join(desktop, "mark");
+  assert.equal(launch.makeShortcut({ desktop, mark }), desktop);
+  const lnk = path.join(desktop, "WoW AI.lnk");
+  const r = spawnSync("powershell.exe", ["-NoProfile", "-Command",
+    `(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk.replace(/'/g, "''")}').TargetPath`], { encoding: "utf8" });
+  assert.equal(r.stdout.trim().toLowerCase(), path.resolve(__dirname, "../../WoW AI.cmd").toLowerCase());
+  fs.rmSync(lnk);
+  assert.equal(launch.makeShortcut({ desktop, mark }), null, "a deleted shortcut stays deleted");
+  assert.equal(fs.existsSync(lnk), false);
 });

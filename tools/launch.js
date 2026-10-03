@@ -92,19 +92,19 @@ function powershell(script) {
   return run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script]);
 }
 
-function bridgeRunning() {
-  const r = run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(BRIDGE, 'stop-bridge.ps1'), '-ListOnly']);
+function bridgeRunning(bridgeDir = BRIDGE) {
+  const r = run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(bridgeDir, 'stop-bridge.ps1'), '-ListOnly']);
   return r.ok && /\d/.test(r.out);
 }
 
-function stopBridge() {
-  run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(BRIDGE, 'stop-bridge.ps1')]);
+function stopBridge(bridgeDir = BRIDGE) {
+  run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(bridgeDir, 'stop-bridge.ps1')]);
 }
 
-function startBridge() {
+function startBridge(bridgeDir = BRIDGE) {
   // --on: a launch means "AI on", even if it was switched off with wowai-kill.
-  spawn('cmd.exe', ['/c', 'start', '"WoW AI bridge"', '/min', 'cmd', '/k', 'node', `"${path.join(BRIDGE, 'supervisor.js')}"`, '--on'],
-    { cwd: BRIDGE, detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
+  spawn('cmd.exe', ['/c', 'start', '"WoW AI bridge"', '/min', 'cmd', '/k', 'node', `"${path.join(bridgeDir, 'supervisor.js')}"`, '--on'],
+    { cwd: bridgeDir, detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
 }
 
 function gameRunning(processName) {
@@ -124,12 +124,13 @@ function openBattleNet() {
 
 // A "WoW AI" icon on the desktop pointing at WoW AI.cmd. Made once: if the
 // player deletes it, it stays deleted (bridge/.shortcut-made remembers).
-function makeShortcut() {
-  if (fs.existsSync(SHORTCUT_MARK)) return null;
+// desktop and mark are for the tests.
+function makeShortcut({ desktop = '', mark = SHORTCUT_MARK } = {}) {
+  if (fs.existsSync(mark)) return null;
   const target = path.join(ROOT, 'WoW AI.cmd');
   const q = s => `'${s.replace(/'/g, "''")}'`;
   const r = powershell([
-    `$d = [Environment]::GetFolderPath('Desktop')`,
+    desktop ? `$d = ${q(desktop)}` : `$d = [Environment]::GetFolderPath('Desktop')`,
     `$l = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d 'WoW AI.lnk'))`,
     `$l.TargetPath = ${q(target)}`,
     `$l.WorkingDirectory = ${q(ROOT)}`,
@@ -139,7 +140,7 @@ function makeShortcut() {
     `Write-Output $d`,
   ].join('; '));
   if (!r.ok) return null;
-  fs.writeFileSync(SHORTCUT_MARK, new Date().toISOString() + '\n');
+  fs.writeFileSync(mark, new Date().toISOString() + '\n');
   return r.out;
 }
 
@@ -211,4 +212,4 @@ function main(argv) {
 
 if (require.main === module) main(process.argv.slice(2));
 
-module.exports = { update, addonDiffers, slotsCreated, plan, GAME_TEXT };
+module.exports = { update, addonDiffers, slotsCreated, plan, GAME_TEXT, bridgeRunning, startBridge, stopBridge, gameRunning, makeShortcut };
