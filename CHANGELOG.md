@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- **One double-click to update and start (Windows).** `WoW AI.cmd` in the repo folder, and the **WoW AI** desktop icon its first run creates, update the checkout (fast-forward only, skipped with local edits), re-install the addon, start or restart the bridge in a minimized window, and say whether the game needs `/reload`, a relaunch, or nothing. With the game closed it opens the Battle.net app; it never starts the game itself. `bridge\stop-bridge.ps1 -ListOnly` lists the running bridge without stopping it, and `bridge\start-window.cmd` starts the bridge by full path so the stop script finds it.
+
 ### Changed
 
 - **Window layout.** A fresh install opens the window at the top centre of the screen instead of the middle, clear of the game chat. The footer line sits above the frame border instead of on it, and a long chat title is cut instead of running over the border (inside the header plaque with the default skin, before the minimize button without it).

@@ -1,3 +1,6 @@
+# Stops this repo's bridge (supervisor.js and bridge.js) and writes bridge\KILLED.
+# -ListOnly prints the matching process ids instead and changes nothing.
+param([switch]$ListOnly)
 $ErrorActionPreference = 'SilentlyContinue'
 
 $bridgeDir = [IO.Path]::GetFullPath($PSScriptRoot)
@@ -54,10 +57,13 @@ foreach ($process in $candidates) {
         continue
     }
     if ($targets -contains $resolved) {
+        if ($ListOnly) { Write-Output $process.ProcessId; continue }
         # /T: the agents the bridge started die with it.
         & taskkill.exe /PID $process.ProcessId /T /F | Out-Null
     }
 }
+
+if ($ListOnly) { exit 0 }
 
 $killedPath = Join-Path $bridgeDir 'KILLED'
 $payload = @{ at = [DateTime]::UtcNow.ToString('o'); by = 'wowai-kill' } | ConvertTo-Json -Compress
