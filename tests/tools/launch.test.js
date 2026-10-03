@@ -10,7 +10,7 @@ const { update, addonDiffers, slotsCreated, plan, GAME_TEXT } = launch;
 
 function tmp(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "launch-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }));
   return dir;
 }
 
@@ -186,12 +186,16 @@ test("Windows: the bridge window starts, is found by stop-bridge.ps1 -ListOnly, 
   assert.equal(launch.bridgeRunning(bridge), false);
   launch.startBridge(bridge);
   const started = await waitFor(() => launch.bridgeRunning(bridge));
+  const cmds = () => spawnSync("powershell.exe", ["-NoProfile", "-Command",
+    "Get-CimInstance Win32_Process -Filter \"Name = 'cmd.exe'\" | ForEach-Object { $_.CommandLine }"], { encoding: "utf8" }).stdout;
   const nodes = () => spawnSync("powershell.exe", ["-NoProfile", "-Command",
     "Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | ForEach-Object { $_.CommandLine }"], { encoding: "utf8" }).stdout;
   assert.equal(started, true, `started; bridge=${bridge}\nnode processes:\n${started ? "" : nodes()}`);
   launch.stopBridge(bridge);
   assert.equal(await waitFor(() => !launch.bridgeRunning(bridge)), true, "stopped");
   assert.ok(fs.existsSync(path.join(bridge, "KILLED")));
+  // The "cmd /k" window went with it: nothing still runs with this folder in its command line.
+  assert.doesNotMatch(nodes() + cmds(), new RegExp(bridge.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&"), "i"));
 });
 
 test("Windows: gameRunning sees a running process by name", WIN, () => {

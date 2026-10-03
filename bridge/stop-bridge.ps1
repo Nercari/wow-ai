@@ -60,8 +60,13 @@ foreach ($process in $candidates) {
     }
     if ($targets -contains $resolved) {
         if ($ListOnly) { Write-Output $process.ProcessId; continue }
+        # A bridge window (start-window.cmd, the launcher) is a "cmd /k node ...supervisor.js"
+        # that would stay open at a prompt: stop that cmd instead, which takes node with it.
+        $victim = $process.ProcessId
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $($process.ParentProcessId)"
+        if ($parent -and $parent.Name -eq 'cmd.exe' -and $parent.CommandLine -like '*supervisor.js*') { $victim = $parent.ProcessId }
         # /T: the agents the bridge started die with it.
-        & taskkill.exe /PID $process.ProcessId /T /F | Out-Null
+        & taskkill.exe /PID $victim /T /F | Out-Null
     }
 }
 
