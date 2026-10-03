@@ -234,4 +234,11 @@ test('the mentor prompt forbids paste-in scripts and asks for menu paths', () =>
   const mentor = require('fs').readFileSync(path.join(__dirname, '..', 'mentor', 'AGENTS.md'), 'utf8');
   const rule = mentor.split('\n').find(l => l.includes('**No scripts to paste.**')) || '';
   for (const word of ['`/run`', '`/script`', '`/console`', '`/dump`', 'menu path', 'Options > Keybindings']) assert.ok(rule.includes(word), word);
+  // Nothing else the agent reads may suggest such a line: every mention sits in a sentence that forbids it.
+  for (const file of ['docs/WOW-ADDON-PRIMER.md', 'mentor/AGENTS.md', 'mentor/knowledge/community-sources.md']) {
+    const text = require('fs').readFileSync(path.join(__dirname, '..', file), 'utf8');
+    for (const line of text.split(/\r?\n/)) {
+      if (/\/(run|script|console|dump)\b/.test(line)) assert.ok(/\b(no|never|rejects)\b/i.test(line), file + ': ' + line.slice(0, 120));
+    }
+  }
 });
