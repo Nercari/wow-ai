@@ -5,8 +5,9 @@
 //
 //   node tools/launch.js [--no-update] [--no-shortcut]
 //
-// 1. Update: a fast-forward `git pull` when the checkout has no local edits.
-//    No network, no git, or local edits: it says so and carries on.
+// 1. Update: fast-forwards a clean checkout to the released forever branch
+//    (see update()). No network, no git, or local edits: it says so and
+//    carries on with what is there.
 // 2. Install: runs setup.js (safe to re-run; keeps config.json and the slots).
 // 3. Bridge: starts it in its own minimized window, or restarts it when the
 //    update changed its code. Left alone when it is running and up to date.
@@ -25,29 +26,125 @@ const ADDON_SRC = path.join(ROOT, 'addon', 'WoWAI');
 const CONFIG = path.join(BRIDGE, 'config.json');
 const SHORTCUT_MARK = path.join(BRIDGE, '.shortcut-made');
 const WIN = process.platform === 'win32';
+const RELEASE_BRANCH = 'forever';
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true, timeout: 120000, ...opts });
   return { ok: !r.error && r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim(), missing: r.error?.code === 'ENOENT' };
 }
 
-// Fast-forward only, and only on a clean checkout: never merges, never
-// overwrites a local edit. Returns { changed, files, note }.
+// Brings a clean checkout to the released version (RELEASE_BRANCH on its
+// remote). Fast-forward only: never merges, resets or discards anything; a
+// folder with local edits, or a local release branch with commits of its own,
+// is left as it is. A clean checkout left on another branch (an agent's work
+// branch) is switched to the release branch; that branch is kept. Nothing is
+// switched unless the fetch worked. Returns { changed, files, note }: files are
+// those that differ on disk afterwards.
 function update(root) {
-  const git = (...a) => run('git', ['-C', root, ...a]);
-  if (!fs.existsSync(path.join(root, '.git'))) return { changed: false, files: [], note: 'not a git checkout; skipping the update' };
+  const git = (...a) => run('git', ['-C', root, ...a], { env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
+  const lines = r => r.out.split('\n').filter(Boolean);
+  // git's own reason, without its "hint:" lines; "...overwritten by checkout:"
+  // gets the first file it names.
+  const why = r => {
+    const ls = r.err.split('\n').filter(l => l.trim() && !/^hint:/.test(l));
+    if (!ls.length) return 'no network?';
+    const first = ls[0].replace(/^(fatal|error): /, '');
+    return first.endsWith(':') && ls[1] ? `${first} ${ls[1].trim()}` : first;
+  };
+  const keep = note => ({ changed: false, files: [], note });
+  if (!fs.existsSync(path.join(root, '.git'))) return keep('not a git checkout; skipping the update');
   const head = git('rev-parse', 'HEAD');
-  if (head.missing) return { changed: false, files: [], note: 'git is not installed; skipping the update' };
-  if (!head.ok) return { changed: false, files: [], note: 'git could not read this checkout; skipping the update' };
-  const dirty = git('status', '--porcelain', '--untracked-files=no');
-  if (dirty.out) return { changed: false, files: [], note: 'this folder has local edits, so it was not updated (nothing was changed)' };
-  const pull = git('pull', '--ff-only', '--quiet');
-  if (!pull.ok) return { changed: false, files: [], note: `could not update (${(pull.err.split('\n')[0] || 'no network?')}); using the version you have` };
+  if (head.missing) return keep('git is not installed; skipping the update');
+  if (!head.ok) return keep('git could not read this checkout; skipping the update');
+  const done = finishPrevious(root, git);
+  if (done.left.length) return keep(`${count(done.left)} from the last update still could not be replaced (${done.left.slice(0, 3).join(', ')}): close anything using them and run this again`);
+  if (git('status', '--porcelain', '--untracked-files=no').out) return keep('this folder has local edits, so it was not updated (nothing was changed)');
+
+  // The remote the local release branch tracks, else origin.
+  const upstream = git('rev-parse', '--abbrev-ref', `${RELEASE_BRANCH}@{upstream}`);
+  const remote = upstream.ok ? upstream.out.split('/')[0] : 'origin';
+  const fetch = git('fetch', '--quiet', remote, RELEASE_BRANCH);
+  if (!fetch.ok) return keep(`could not update (${why(fetch)}); using the version you have`);
+  const release = git('rev-parse', 'FETCH_HEAD').out;
+
+  const local = git('rev-parse', '--verify', '--quiet', `refs/heads/${RELEASE_BRANCH}`);
+  if (local.ok && !git('merge-base', '--is-ancestor', local.out, release).ok) {
+    return keep(`your ${RELEASE_BRANCH} branch has changes of its own that are not in the release; not updated`);
+  }
+  const branch = git('branch', '--show-current').out;
+  // A detached commit that no branch holds would only be left in the reflog.
+  if (!branch && !git('merge-base', '--is-ancestor', head.out, release).ok &&
+      !git('for-each-ref', '--contains', head.out, 'refs/heads').out) {
+    return keep(`this folder is on commit ${head.out.slice(0, 7)}, which no branch holds; not updated`);
+  }
+  let switched = '', moved;
+  if (branch === RELEASE_BRANCH) {
+    moved = git('merge', '--ff-only', '--quiet', release);
+  } else {
+    // switch -C would move a forever checked out in another worktree under it.
+    // Entries whose folder was deleted ("prunable") don't count; newer git still
+    // refuses those, hence --ignore-other-worktrees below.
+    const elsewhere = git('worktree', 'list', '--porcelain').out.split('\n\n')
+      .some(w => w.split('\n').includes(`branch refs/heads/${RELEASE_BRANCH}`) && !/^prunable/m.test(w));
+    if (elsewhere) return keep(`${RELEASE_BRANCH} is open in another folder (a git worktree); not updated`);
+    // One checkout straight to the release: the local release branch (an
+    // ancestor, checked above) is moved up to it in the same step, so a
+    // refused checkout leaves the folder exactly where it was.
+    moved = git('switch', '--quiet', '--ignore-other-worktrees', '-C', RELEASE_BRANCH, release);
+    if (git('branch', '--show-current').out === RELEASE_BRANCH) {
+      git('branch', '--quiet', `--set-upstream-to=${remote}/${RELEASE_BRANCH}`);
+      switched = ` (switched from "${branch || 'a detached commit'}" to ${RELEASE_BRANCH}; ${branch ? 'that branch is' : 'its commits are'} kept)`;
+    }
+  }
+  // Judge by where HEAD ended up, not the exit code: a failing post-checkout
+  // hook makes git exit non-zero after the checkout already happened.
   const after = git('rev-parse', 'HEAD').out;
-  if (after === head.out) return { changed: false, files: [], note: 'already up to date' };
-  const files = git('diff', '--name-only', head.out, after).out.split('\n').filter(Boolean);
-  const log = git('log', '--oneline', `${head.out}..${after}`).out.split('\n').filter(Boolean);
-  return { changed: true, files, note: `updated (${log.length} change${log.length === 1 ? '' : 's'})` };
+  const onRelease = git('branch', '--show-current').out === RELEASE_BRANCH;
+  if (!moved.ok && after === head.out && (branch === RELEASE_BRANCH || !onRelease)) {
+    return keep(`could not update (${why(moved)}); using the version you have`);
+  }
+  // A file git could not replace, create or delete (in use, read-only) keeps
+  // the previous checkout's bytes. List only the files that really changed,
+  // say which didn't, and note them so the next run can finish the job.
+  const deleted = after === head.out ? [] : lines(git('diff', '--name-only', '--diff-filter=D', head.out, after));
+  const stuck = [...lines(git('diff', '--name-only', 'HEAD')), ...deleted.filter(f => fs.existsSync(path.join(root, f)))];
+  const files = [...done.files, ...(after === head.out ? [] : lines(git('diff', '--name-only', head.out, after)).filter(f => !stuck.includes(f)))];
+  if (stuck.length) {
+    fs.writeFileSync(pendingFile(root, git), JSON.stringify({ from: head.out, paths: stuck }));
+    return { changed: files.length > 0, files, note: `partly updated: ${count(stuck)} could not be replaced (${stuck.slice(0, 3).join(', ')}): close anything using them and run this again${switched}` };
+  }
+  if (!files.length) return { changed: false, files, note: `already up to date${switched}` };
+  return { changed: true, files, note: `updated to the latest release (${count(files)} changed)${switched}` };
+}
+
+const count = fs_ => `${fs_.length} file${fs_.length === 1 ? '' : 's'}`;
+const pendingFile = (root, git) => path.resolve(root, git('rev-parse', '--git-path', 'wowai-unfinished').out);
+
+// Finishes an update that left files behind (see the end of update()). A file
+// is replaced only while it still holds exactly what the previous checkout
+// put there (or is still absent when that checkout had none); anything else
+// is the player's edit and is left alone. Returns the files it finished and
+// the ones still stuck.
+function finishPrevious(root, git) {
+  const file = pendingFile(root, git);
+  let pending;
+  try { pending = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return { files: [], left: [] }; }
+  const blob = (rev, f) => git('rev-parse', '--verify', '--quiet', `${rev}:${f}`).out;
+  const files = [], left = [];
+  for (const f of pending.paths) {
+    const disk = fs.existsSync(path.join(root, f)) ? git('hash-object', '--', f).out : '';
+    const want = blob('HEAD', f);
+    if (disk === want) { files.push(f); continue; }
+    if (disk !== blob(pending.from, f)) continue;
+    if (want) {
+      if (git('checkout', 'HEAD', '--', f).ok && git('hash-object', '--', f).out === want) files.push(f); else left.push(f);
+    } else {
+      try { fs.unlinkSync(path.join(root, f)); files.push(f); } catch { left.push(f); }
+    }
+  }
+  if (left.length) fs.writeFileSync(file, JSON.stringify({ from: pending.from, paths: left }));
+  else fs.rmSync(file, { force: true });
+  return { files, left };
 }
 
 // True when an installed addon file is missing or differs from the repo copy.
