@@ -682,6 +682,7 @@ test('chat management commands: new, chat, rename, delete, clear, copy', () => {
   vm.run('WoWAI.ShowCopy("some reply")');
   assert.equal(vm.evaluate('WoWAICopy.shown'), 'true');
   assert.equal(vm.evaluate('WoWAICopyBox.text'), 'some reply');
+  assert.equal(vm.num('WoWAICopyFill.color[4]'), 1, 'the copy box has a solid background');
 });
 
 test('chat rows: right-click opens a menu that renames or sets the folder of that chat, the trash can asks before deleting', () => {
