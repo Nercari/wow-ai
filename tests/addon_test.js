@@ -717,6 +717,37 @@ test('reload mode writes the outbox for the bridge instead of drawing the strip'
 });
 
 
+test('a reload asked for in combat waits for a keypress after combat, never fires from the combat-end event', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('STUB.combat = true; STUB.reloaded = nil');
+  vm.run('SlashCmdList.WOWAI("reload")');
+  assert.equal(vm.evaluate('STUB.reloaded'), null, 'no reload in combat');
+  vm.run('WoWAIKeyCatcher.scripts.OnKeyDown(WoWAIKeyCatcher, "W")');
+  assert.equal(vm.evaluate('STUB.reloaded'), null, 'a keypress in combat does not reload');
+  vm.run('STUB.combat = false; STUB.FireEvent("PLAYER_REGEN_ENABLED")');
+  assert.equal(vm.evaluate('STUB.reloaded'), null, 'ReloadUI is blocked outside a hardware event, so the event must not call it');
+  assert.equal(vm.evaluate('WoWAIKeyCatcher.shown'), 'true');
+  vm.run('WoWAIKeyCatcher.scripts.OnKeyDown(WoWAIKeyCatcher, "W")');
+  assert.equal(vm.evaluate('STUB.reloaded'), 'true', 'the next keypress reloads');
+});
+
+test('the addon leaves the game chat boxes alone (no replaced methods, so typed /run and /cast stay untainted)', () => {
+  const vm = newVM();
+  vm.run(`
+    ChatFrame1EditBox = CreateFrame("EditBox", "ChatFrame1EditBox", UIParent)
+    ORIG = {}
+    for _, k in ipairs({ "ProcessChatType", "SendMessage", "SendText" }) do
+      local fn = function() end
+      ChatFrame1EditBox[k] = fn
+      ORIG[k] = fn
+    end`);
+  login(vm);
+  for (const k of ['ProcessChatType', 'SendMessage', 'SendText']) {
+    assert.equal(vm.evaluate(`ChatFrame1EditBox.${k} == ORIG.${k}`), 'true', `${k} is untouched`);
+  }
+});
+
 test('Forever blocks sends, dispatches commands, observes replies and supports cmd flags', () => {
   const vm = newVM();
   vm.run(`WoWAIForever.Register({

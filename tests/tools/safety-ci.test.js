@@ -204,3 +204,45 @@ test("repo directories pass failure rules", () => {
     ),
   );
 });
+
+test("repo mode flags replacing a Blizzard function or a method on a Blizzard frame (taint)", async (t) => {
+  const dir = await fixture(t);
+  await fs.writeFile(path.join(dir, "taint.lua"), [
+    'local eb = _G["ChatFrame1EditBox"]',
+    "eb.SendText = function(self) end",
+    "function ChatEdit_InsertLink(text) end",
+    "ChatFrame1EditBox.ProcessChatType = function() end",
+  ].join("\n") + "\n");
+  const lines = scan([dir]).findings.filter((item) => item.rule === "LUA-TAINT").map((item) => item.line);
+  assert.deepEqual(lines, [2, 3, 4]);
+});
+
+test("hooks, slash commands, popups and the addon's own tables are not taint", async (t) => {
+  const dir = await fixture(t);
+  await fs.writeFile(path.join(dir, "clean.lua"), [
+    "WoWAI = WoWAI or {}",
+    "function WoWAI.Toggle() end",
+    "SlashCmdList.WOWAI = function(msg) end",
+    'StaticPopupDialogs["WOWAI_X"] = { OnAccept = function() end }',
+    'hooksecurefunc("SetItemRef", function() end)',
+    "local t = {}",
+    "t.f = function() end",
+  ].join("\n") + "\n");
+  assert.deepEqual(scan([dir]).findings.filter((item) => item.rule === "LUA-TAINT"), []);
+});
+
+test("donation and advertising text in addon files fails (UI add-on policy rules 4 and 5)", async (t) => {
+  const dir = await fixture(t);
+  await fs.writeFile(path.join(dir, "ad.lua"), 'print("Support me on Patreon")\n');
+  await fs.writeFile(path.join(dir, "Ad.toc"), "## Notes: please donate\n");
+  const result = scan([dir]);
+  assert.equal(result.ok, false);
+  assert.equal(result.findings.filter((item) => item.rule === "POLICY-SOLICIT").length, 2);
+});
+
+test("auction, trade and targeting actions count as protected automation", async (t) => {
+  const dir = await fixture(t);
+  await fs.writeFile(path.join(dir, "ah.lua"), "PostAuction(1, 2)\nUseContainerItem(0, 1)\n");
+  const result = scan([dir]);
+  assert.equal(result.findings.filter((item) => item.rule === "LUA-PROTECTED-AUTOMATION").length, 2);
+});
