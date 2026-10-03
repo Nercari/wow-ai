@@ -32,7 +32,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 15. **Copy box is see-through** (done, PR #20; live look pending), so the selected text sits on top of the reply (7:45). Give it a solid background.
 16. **Footer looks crossed out and the title runs into the frame border** (done, PR #22; live look pending) (all video). Fix the layout.
 17. **Window opens on top of the game chat** (done, PR #22; live look pending) by default (0:00, 5:10). Pick a default position clear of the chat.
-18. **Copy button per command line.** A small [copy] link next to each command opens the copy box with only that line (7:45).
+18. **Copy button per command line** (done, PR #26; live look pending). A small [copy] link next to each command opens the copy box with only that line (7:45).
 19. **Settings as a menu checklist** (done, PR #15). The mentor gives settings as menu paths the player ticks ("Options > Controls > Auto Loot: on") instead of scripts. Avoids the popups at 7:55 and 8:00. Builds on item 11.
 20. **Starter questions for a new character.** A first-run card with four questions fitted to class and level (0:00).
 21. **Level-up nudge.** After the fight in which the player levels up, offer "what changes at this level?" (6:20). Out of combat only; extends the level re-run from WOW-11.
