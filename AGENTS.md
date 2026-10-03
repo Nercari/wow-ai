@@ -4,6 +4,16 @@ Pedro's fork of `chelinho139/wow-ai` (MIT): chat with local coding agents from i
 
 `mentor/AGENTS.md` and `docs/AGENTS.md` are product files (the in-game coach's prompt and the agent-CLI guide), not instructions for working on this repo.
 
+## Blizzard policy (permanent rule, Pedro, 2026-10-03)
+
+wow-ai must comply 100% with Blizzard's Terms of Service, EULA and UI add-on policy at all times. Any feature, change or idea that could breach them is rejected, however useful. When in doubt, don't ship it and ask Pedro on nercari-control #114.
+
+- Check every PR against `docs/COMPLIANCE.md` and say in the PR that you did. It lists the sources, what each clause means for this repo, and the open questions waiting on Pedro.
+- The addon only uses the game's own UI API, never replaces Blizzard functions or frame methods (hook them with `hooksecurefunc`), never calls protected or hardware-event actions outside a real keypress or click, and never performs gameplay, economy or targeting actions for the player.
+- No advertising, donation requests, paid features or hidden code in the addon (UI add-on policy rules 1, 2, 4, 5).
+- Agent replies never hand out code that plays for the player. Settings are given as menu paths, not `/run` scripts.
+- `tools/safety-ci.js` enforces what it can (`LUA-TAINT`, `POLICY-SOLICIT`, protected automation, input and memory APIs, obfuscation). Where a new risk can be checked by code, add the check.
+
 ## Working here
 
 - Default branch is `forever`. Every change is a PR into it, one change per PR, verified by an agent that did not write it before merge.

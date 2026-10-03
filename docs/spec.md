@@ -7,7 +7,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 ## Standing goals (checked every maintenance pass)
 
 1. **Green.** `node tools/safety-ci.js` and `npm test` pass on Windows and Linux CI for `forever` and every PR. A red `forever` is fixed before anything else.
-2. **Safe.** No feature plays for the player, reads memory, injects code, generates input or helps during combat. Safety CI rules only get stricter.
+2. **Safe and Blizzard-compliant.** 100% compliant with Blizzard's ToS, EULA and UI add-on policy (permanent rule, Pedro, 2026-10-03; see `AGENTS.md` and `docs/COMPLIANCE.md`): anything that could breach them is rejected. No feature plays for the player, reads memory, injects code, generates input or helps during combat. Safety CI rules only get stricter.
 3. **Current agent CLIs.** Claude Code, Codex, Grok Build, agy and Hermes stream formats still parse. When a CLI release changes its stream, add the new sample to `tests/agents_test.js` and fix the parser.
 4. **Current game and policy.** `tools/policy-watch.js` alerts on a Blizzard policy change; read the diff and say whether the tool is affected. A new Forever client build gets its TOC and API checks.
 5. **Upstream.** Compare with `chelinho139/wow-ai` main; bring in useful upstream fixes by PR, keeping `forever` behaviour.
