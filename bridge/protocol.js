@@ -103,7 +103,10 @@ function isBroadFolder(dir, home = os.homedir()) {
   if (path.parse(d).root === d) return true;
   const rel = path.relative(d, h);
   if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) return true;
-  return path.dirname(d) === h && /^(documents|desktop|downloads)$/i.test(path.basename(d));
+  // Windows often keeps Documents and Desktop inside the OneDrive folder.
+  const parent = path.dirname(d), oneDrive = p => path.dirname(p) === h && /^onedrive/i.test(path.basename(p));
+  if (oneDrive(d)) return true;
+  return (parent === h || oneDrive(parent)) && /^(documents|desktop|downloads)$/i.test(path.basename(d));
 }
 
 // The folder for chats that have not picked one. A folder named on purpose

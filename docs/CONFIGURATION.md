@@ -113,7 +113,7 @@ Each chat can pick its own folder with `/wow-ai cd` or **Folder...** in the menu
 4. `defaultCwd` in `config.json`, unless it is a broad folder
 5. The mentor workspace (`forever.mentorDir`, by default `wow-mentor` next to this repo), created from the `mentor/` template on first use
 
-A broad folder is a drive root, your home folder or anything above it, or its Documents, Desktop or Downloads: an agent working there reads unrelated files. Naming one on purpose (`--project`, `WOW_AI_PROJECT`, `/wow-ai cd`) still works, and every reply in it carries a one-line warning.
+A broad folder is a drive root, your home folder or anything above it, or its Documents, Desktop or Downloads (also inside OneDrive): an agent working there reads unrelated files. Naming one on purpose (`--project`, `WOW_AI_PROJECT`, `/wow-ai cd`) still works, and every reply in it carries a one-line warning.
 
 A relative `/wow-ai cd` path is resolved against that default. `~` expands to your home folder. The agents keep sessions per folder, so a chat that changes folder starts a fresh session there; the same happens when a chat changes agent.
 

@@ -207,7 +207,7 @@ test('cmd flags accept only lowercase constrained names', () => {
 
 test('isBroadFolder: drive root, home and above, Documents/Desktop/Downloads; a project folder is not', () => {
   const home = path.join(os.tmpdir(), 'wowai-home', 'pedro');
-  for (const d of [path.parse(home).root, home, path.dirname(home), path.join(home, 'Documents'), path.join(home, 'desktop'), path.join(home, 'Downloads')]) {
+  for (const d of [path.parse(home).root, home, path.dirname(home), path.join(home, 'Documents'), path.join(home, 'desktop'), path.join(home, 'Downloads'), path.join(home, 'OneDrive'), path.join(home, 'OneDrive - Work', 'Documents')]) {
     assert.equal(P.isBroadFolder(d, home), true, d);
   }
   for (const d of [path.join(home, 'Documents', 'wow-mentor'), path.join(home, 'code'), path.join(os.tmpdir(), 'elsewhere', 'Documents')]) {
