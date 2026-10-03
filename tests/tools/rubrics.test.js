@@ -10,7 +10,7 @@ const rows = (text) => text.split("\n").filter((l) => /^\| [A-Z]\d+ \|/.test(l))
 test("warlock rubric: every row quotes evidence and cites an existing knowledge section", () => {
   const text = read("rubrics/warlock.md");
   const table = rows(text);
-  assert.deepEqual(table.map((r) => r.split("|")[1].trim()), ["W1", "W2", "W3", "W4", "W5"]);
+  assert.deepEqual(table.map((r) => r.split("|")[1].trim()), ["W1", "W2", "W3", "W4"]);
   for (const r of table) {
     const cells = r.split("|").slice(1, -1).map((c) => c.trim());
     assert.equal(cells.length, 5, r);
