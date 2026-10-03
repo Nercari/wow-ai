@@ -2194,6 +2194,11 @@ hooksecurefunc("SetItemRef", function(link)
 	if FindChat(chatId) then WoWAI.SwitchChat(chatId) end
 	WoWAI.Toggle(true)
 	if action == "reply" and ui.input then ui.input:SetFocus() end
+	-- [ask] links (the level-up nudge) put a ready question in the box; Enter sends it.
+	if action == "ask" and ui.input and WoWAI.askText then
+		ui.input:SetText(WoWAI.askText)
+		ui.input:SetFocus()
+	end
 end)
 
 -- Shift-clicking an item, spell, quest or name puts its link into the chat box
