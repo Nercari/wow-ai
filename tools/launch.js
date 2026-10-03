@@ -70,6 +70,10 @@ function update(root) {
     return keep(`your ${RELEASE_BRANCH} branch has changes of its own that are not in the release; not updated`);
   }
   const branch = git('branch', '--show-current').out;
+  // Commits made on no branch would only be left in the reflog.
+  if (!branch && !git('merge-base', '--is-ancestor', head.out, release).ok) {
+    return keep(`this folder is on commit ${head.out.slice(0, 7)}, which no branch holds; not updated`);
+  }
   let switched = '';
   if (branch !== RELEASE_BRANCH) {
     const sw = local.ok ? git('switch', '--quiet', RELEASE_BRANCH) : git('switch', '--quiet', '-c', RELEASE_BRANCH, release);
@@ -78,10 +82,10 @@ function update(root) {
     switched = ` (switched from "${branch || 'no branch'}" to ${RELEASE_BRANCH}; that branch is kept)`;
   }
   const ff = git('merge', '--ff-only', '--quiet', release);
-  if (!ff.ok) return keep(`could not update (${why(ff)})${switched}`);
-
   const after = git('rev-parse', 'HEAD').out;
   const files = after === head.out ? [] : lines(git('diff', '--name-only', head.out, after));
+  // Switched but not fast-forwarded: still report what the switch changed.
+  if (!ff.ok) return { changed: files.length > 0, files, note: `could not update (${why(ff)})${switched}` };
   if (!files.length) return { changed: false, files, note: `already up to date${switched}` };
   return { changed: true, files, note: `updated to the latest release (${files.length} file${files.length === 1 ? '' : 's'} changed)${switched}` };
 }

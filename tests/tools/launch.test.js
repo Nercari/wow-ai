@@ -161,6 +161,31 @@ test("update: an untracked file that blocks the switch is named, and nothing mov
   assert.equal(fs.readFileSync(path.join(player, "README.md"), "utf8"), "my notes\n");
 });
 
+test("update: commits on no branch are not left behind", (t) => {
+  const { player } = repos(t);
+  git(player, "switch", "-q", "--detach");
+  fs.writeFileSync(path.join(player, "x.txt"), "detached\n");
+  git(player, "add", "-A");
+  git(player, "commit", "-q", "-m", "detached work");
+  const head = git(player, "rev-parse", "HEAD");
+  const r = update(player);
+  assert.equal(r.changed, false);
+  assert.match(r.note, /which no branch holds/);
+  assert.equal(git(player, "rev-parse", "HEAD"), head);
+});
+
+test("update: switched but the fast-forward failed still lists what the switch changed", (t) => {
+  const { dev, player } = repos(t);
+  onAgentBranch(player);
+  commit(dev, "new.txt", "release\n");
+  fs.writeFileSync(path.join(player, "new.txt"), "mine\n"); // untracked, blocks the fast-forward only
+  const r = update(player);
+  assert.equal(git(player, "branch", "--show-current"), "forever");
+  assert.match(r.note, /could not update/);
+  assert.deepEqual([r.changed, r.files], [true, ["bridge.js"]]);
+  assert.equal(fs.readFileSync(path.join(player, "new.txt"), "utf8"), "mine\n");
+});
+
 test("update: no local forever and two remotes that have one: forever is made from origin", (t) => {
   const { dev, player } = repos(t);
   git(player, "remote", "add", "upstream", git(player, "remote", "get-url", "origin"));
