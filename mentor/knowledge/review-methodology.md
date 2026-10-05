@@ -33,7 +33,7 @@ RETRIEVED, cross-confirmed by two independent fetches. Order:
 Environmental events (falling, drowning, lava) use an all-zero source GUID (`0000000000000000`) since there is no acting unit. REPORTED. [wowcoach.gg/docs/combat-log/line-format]
 
 ### 1.3 Advanced combat logging block (19 fields)
-RETRIEVED, cross-confirmed. Present on spell/swing events only when `advancedCombatLogging` is on (`/console advancedCombatLogging 1`, default on for most UIs, required for Warcraft Logs uploads to show gear/talents/resources). Sits after the prefix fields (spellId/spellName/spellSchool where applicable) and before the suffix fields:
+RETRIEVED, cross-confirmed. Present on spell/swing events only when `advancedCombatLogging` is on (the "Advanced Combat Logging" checkbox in the game's Network options; tell the player the menu path, never a console command; default on for most UIs, required for Warcraft Logs uploads to show gear/talents/resources). Sits after the prefix fields (spellId/spellName/spellSchool where applicable) and before the suffix fields:
 
 | # | Field | Meaning |
 |---|-------|---------|
