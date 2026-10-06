@@ -18,5 +18,6 @@ npm test                  -> exit 0
 # tests 263
 # pass 260
 # fail 0
+# skipped 3
 >>> CODEC ROUND-TRIP PASS
 ```
