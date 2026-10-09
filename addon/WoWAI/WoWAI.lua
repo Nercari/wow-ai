@@ -1922,6 +1922,14 @@ function WoWAI.StarterQuestions()
 	}
 end
 
+-- One-click follow-ups under the newest finished reply. A question click types it
+-- into the box (the player presses Enter); "Review my last fight" is the same
+-- command as the window's Review button.
+WoWAI.FOLLOW_UPS = {
+	{ label = "Review my last fight", cmd = "review" },
+	{ label = "What should I buy first?", fill = "What should I buy first, and where do I get it?" },
+}
+
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
@@ -1934,7 +1942,7 @@ function WoWAI.Render()
 		if not width or width < 80 then width = 400 end
 		ui.content:SetWidth(width)
 		local y, n = 0, 0
-		local function Place(role, text, when, dim, denied, agent, starters)
+		local function Place(role, text, when, dim, denied, agent, starters, follow)
 			n = n + 1
 			local b = GetBubble(n)
 			local st = ROLE_STYLE[role] or ROLE_STYLE.system
@@ -1991,6 +1999,35 @@ function WoWAI.Render()
 				extra = extra + 24
 			end
 			for k = #cmds + 1, #b.copies do b.copies[k]:Hide() end
+			b.follows = b.follows or {}
+			local nfollow = 0
+			if follow and not (WoWAIForever and WoWAIForever.Locked and WoWAIForever.Locked()) then
+				for _, fu in ipairs(WoWAI.FOLLOW_UPS) do
+					nfollow = nfollow + 1
+					local fb = b.follows[nfollow]
+					if not fb then
+						fb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+						fb:SetHeight(20)
+						fb:SetScript("OnClick", function(self)
+							if self.cmd then
+								SlashCmdList["WOWAI"](self.cmd)
+							elseif ui.input then
+								ui.input:SetText(self.fill)
+								ui.input:SetFocus()
+							end
+						end)
+						b.follows[nfollow] = fb
+					end
+					fb:SetText(fu.label)
+					fb:SetWidth(math.min(width - 24, fb:GetFontString():GetStringWidth() + 30))
+					fb.cmd, fb.fill = fu.cmd, fu.fill
+					fb:ClearAllPoints()
+					fb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
+					fb:Show()
+					extra = extra + 24
+				end
+			end
+			for k = nfollow + 1, #b.follows do b.follows[k]:Hide() end
 			b:SetHeight(6 + 12 + 4 + h + 8 + extra)
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", ui.content, "TOPLEFT", 0, -y)
@@ -2002,7 +2039,8 @@ function WoWAI.Render()
 		for i, m in ipairs(c.history) do
 			-- The Allow button only makes sense on the newest reply, and only while idle.
 			local denied = (i == last and not c.pendingId and type(m.denied) == "table" and #m.denied > 0) and m.denied or nil
-			Place(m.role, m.text, m.t and date("%H:%M", m.t) or "", false, denied, m.agent)
+			local follow = i == last and not c.pendingId and m.role == "assistant" and not denied
+			Place(m.role, m.text, m.t and date("%H:%M", m.t) or "", false, denied, m.agent, nil, follow)
 		end
 		if c.pendingId then
 			local p = c.progress
