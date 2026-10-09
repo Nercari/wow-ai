@@ -4,6 +4,7 @@ local defaults = {
 	gear = "Audit my gear and find upgrades.", quest = "Explain this quest (no spoilers).",
 	level = "Plan my leveling route.", drill = "What should I practice today?", phone = "phone",
 	practice = "Compare my last two target-dummy sessions.",
+	recap = "Give me a short recap of this session.",
 }
 
 local function TargetChat()
@@ -27,7 +28,7 @@ local function Send(cmd, rest)
 	WoWAI.Send(text, nil, { cmd = cmd, chat = chat.id })
 end
 
-local commands = { "review", "death", "build", "gear", "quest", "brief", "drill", "level", "look", "council", "phone", "practice" }
+local commands = { "review", "death", "build", "gear", "quest", "brief", "drill", "level", "look", "council", "phone", "practice", "recap" }
 local handlers = {}
 for _, cmd in ipairs(commands) do
 	handlers[cmd] = function(rest)
