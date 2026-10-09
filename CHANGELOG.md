@@ -14,6 +14,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- **Cleaner status line while the AI works.** The "working..." bubble no longer repeats the status line, so there is one timer and the Reply-arrived/draft sentence no longer shows inside the AI's message. "no activity seen yet" is not shown next to a listed action count. The status line no longer shows internal numbers ("working on #13", "Sending #16..."). "Your draft is back in the box" only shows when the box has text. In the second 2026-10-03 recording two timers disagreed (7s and 11s, 5 actions next to 2).
 - **Copy button per command.** Each slash command line in a reply gets a small "copy: ..." button under the text; it opens the copy box with only that line selected. Script lines and file paths get none. The addon never types or sends the command.
 - **Window layout.** A fresh install opens the window at the top centre of the screen instead of the middle, clear of the game chat. The footer line sits above the frame border instead of on it, and a long chat title is cut instead of running over the border (inside the header plaque with the default skin, before the minimize button without it).
 - **The copy box has a solid background**, so the reply underneath no longer shows through the selected text.
