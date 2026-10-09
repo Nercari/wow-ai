@@ -58,6 +58,6 @@ Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17
 37. **Mentor wording.** No developer talk to the player ("this folder is not a git repo", 7:02; "the shell command I tried was blocked", 8:37) and no listing of folders outside the workspace (7:42). Fix in `mentor/AGENTS.md`.
 38. **New-quest nudge.** After a quest is accepted out of combat (12:50, 14:30), a chat link "[explain this quest]", like the level-up nudge (item 21).
 39. **Quest reward question** (done, this PR; live look pending). A button next to the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks. Was: a link on the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks.
-40. **Follow-up buttons and session recap.** One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
+40. **Follow-up buttons and session recap.** (follow-up buttons done, this PR; recap still open) One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
 
 Add new items at the end with the next number; mark done items `(done, PR #n)` instead of deleting them.
