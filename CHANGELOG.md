@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Window polish (backlog 34-36).** Each message has a small copy icon instead of the "Click to copy this message" tooltip that followed the mouse. Backticks and `**` marks no longer show in replies (the copy box keeps the original text). The window, copy box and menus are solid dark instead of see-through. The AI menu closes when you switch chats, so it never names the old chat. **+ New chat** reuses an empty chat instead of adding another.
+
 ### Added
 
 - **The window folds away in a fight.** When combat, an encounter or a challenge run starts, an open WoW AI window collapses to the small bar and opens again when it ends, so no AI advice is on screen while you fight. A window you had closed stays closed, and opening or closing it by hand in a fight wins. In the second 2026-10-03 recording a rotation list stayed readable for about 10 seconds in a fight.

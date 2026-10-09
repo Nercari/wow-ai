@@ -872,22 +872,35 @@ test('the transcript keeps a scrolled-up position on resize and status refresh, 
   assert.equal(scrolled(), 700, 'switching chat goes to the bottom');
 });
 
-test('a message bubble hints that a click copies it, and the hint goes away on leave', () => {
+test('a message bubble has a copy icon (no mouse-following tooltip) that opens the copy box', () => {
   const vm = newVM();
   login(vm);
   vm.run('WoWAI.Toggle(true)');
-  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "copy me")');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "copy **me** `now`")');
   vm.run('WoWAI.Render()');
   vm.run('BUBBLE = WoWAIContent.children[1]');
-  assert.equal(vm.evaluate('BUBBLE.text'), 'copy me');
-  vm.run('BUBBLE.scripts.OnEnter(BUBBLE)');
-  assert.equal(vm.evaluate('GameTooltip.shown'), 'true');
-  assert.equal(vm.evaluate('GameTooltip.text'), 'Click to copy this message');
-  vm.run('BUBBLE.scripts.OnLeave(BUBBLE)');
-  assert.equal(vm.evaluate('GameTooltip.shown'), 'false');
-  // And the click still opens the copy box.
-  vm.run('BUBBLE.scripts.OnMouseUp(BUBBLE, "LeftButton")');
-  assert.equal(vm.evaluate('WoWAICopyBox.text'), 'copy me');
+  assert.equal(vm.evaluate('BUBBLE.text'), 'copy **me** `now`');
+  assert.equal(vm.evaluate('BUBBLE.scripts.OnEnter == nil'), 'true');
+  vm.run('BUBBLE.copyBtn.scripts.OnClick(BUBBLE.copyBtn)');
+  assert.equal(vm.evaluate('WoWAICopyBox.text'), 'copy **me** `now`');
+  // The window shows the words without the markdown marks.
+  assert.equal(vm.evaluate('BUBBLE.body.text'), 'copy me now');
+});
+
+test('an unnamed new chat reuses an empty one; a switch closes the AI menu', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('SlashCmdList.WOWAI("new Other")'); vm.run('STUB.RunTimers()');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "user", "hi")');
+  const before = vm.evaluate('#WoWAIDB.chats');
+  vm.run('WoWAI.NewChat()');
+  const after = vm.evaluate('#WoWAIDB.chats');
+  vm.run('WoWAI.NewChat()');
+  assert.equal(vm.evaluate('#WoWAIDB.chats'), after, 'a second unnamed chat reuses the empty one');
+  assert.equal(Number(after), Number(before) + 0, 'an empty chat already existed');
+  vm.run('WoWAI.ShowPicker(WoWAIDB.activeChat, WoWAIPoolPicker)');
+  vm.run('WoWAI.SwitchChat(WoWAIDB.chats[1].id)');
+  assert.equal(vm.evaluate('WoWAIPoolPicker:IsShown()'), 'false');
 });
 
 test('chat rows: right-click opens a menu that renames or sets the folder of that chat, the trash can asks before deleting', () => {
