@@ -390,10 +390,15 @@ test('while the agent works: one timer (the status line) and an action count tha
   const texts = vm.evaluate('table.concat(STUB.texts, "|")').split('|');
   const running = texts.filter(t => t.includes('running '));
   assert.ok(running.length > 0, 'the status line shows the timer');
-  assert.ok(running.every(t => t.includes('is working on #')), 'only the status line carries a timer: ' + running.join(' / '));
+  assert.ok(running.every(t => t.includes('is working - ')), 'only the status line carries a timer: ' + running.join(' / '));
   assert.ok(running.some(t => t.includes('6 actions')), running.join(' / '));
   assert.ok(!texts.some(t => t.includes('0 actions')), 'never "0 actions" above a list of six');
   assert.ok(texts.some(t => t.startsWith('working...') && t.includes('read a') && !t.includes('running ')), 'the working bubble lists the actions without a second timer');
+  assert.ok(!texts.some(t => /is working|Sending|Waiting for/.test(t) && t.startsWith('working...')), 'the working bubble does not repeat the status line');
+  assert.ok(!texts.some(t => /#\d/.test(t) && /working|Sending|Waiting/.test(t)), 'no internal ids in the status line');
+  vm.run('STUB.texts = {}; STUB.now = STUB.now + 70; STUB.Tick()');
+  const later = vm.evaluate('table.concat(STUB.texts, "|")');
+  assert.ok(!later.includes('no activity seen yet'), 'no "no activity seen yet" next to a listed action count');
 });
 
 test('a denied reply shows Allow, and Allow resends with the rules as flags', () => {
