@@ -305,6 +305,8 @@ function rulesFor(d) {
     const c = cmd[i];
     if (quote) { cur += c; if (c === quote) quote = ''; continue; }
     if (c === '"' || c === "'") { quote = c; cur += c; continue; }
+    // `&` inside a redirection (2>&1, &>file, >&2) is not a separator.
+    if (c === '&' && (cmd[i - 1] === '>' || cmd[i - 1] === '<' || cmd[i + 1] === '>')) { cur += c; continue; }
     if (c === '|' || c === ';' || c === '&' || c === '\n') { parts.push(cur); cur = ''; continue; }
     cur += c;
   }

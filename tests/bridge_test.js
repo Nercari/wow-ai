@@ -164,6 +164,7 @@ test('rulesFor gives one rule per part of a compound command', () => {
   const r = cmd => P.rulesFor({ tool_name: 'Bash', tool_input: { command: cmd } });
   assert.deepEqual(r('ls -la | head'), ['Bash(ls:*)', 'Bash(head:*)']);
   assert.deepEqual(r('echo "a | b" && ls'), ['Bash(echo:*)', 'Bash(ls:*)']);
+  assert.deepEqual(r('ls 2>&1 | head &> out.txt'), ['Bash(ls:*)', 'Bash(head:*)']);
   assert.deepEqual(r('ls || ls'), ['Bash(ls:*)']);
   assert.deepEqual(r('ls | "C:\\x.exe" a'), ['Bash(ls:*)', 'Bash']);
   assert.deepEqual(P.rulesFor({ tool_name: 'WebSearch' }), ['WebSearch']);
