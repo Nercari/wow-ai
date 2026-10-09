@@ -19,7 +19,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 2. **Live column.** Fill the Live column of the coverage doc from Pedro's in-game checks, one short checklist per batch.
 3. **F25 screenshot transport (WOW-17, AC30).** Build only if its WOW-02 gate passes; otherwise keep the text/`look` fallback.
 4. **Facts cache wording.** A cached fact says "checked today" instead of its fetch date (dry run 2, AC20). Fix in `mentor/AGENTS.md` and re-run the dry run.
-5. **Hotkeys.** Menu-only bindings ship today; an auto-bind variant needs a safety-CI exemption. Pedro's decision, then implement or drop.
+5. **Hotkeys** (decided 2026-10-09, Pedro delegated the call; done, no code change). Keep the menu-only bindings that ship today: the player assigns keys in Options > Keybindings > WoW AI, with no default keys, so no existing binding is overwritten. The auto-bind variant is dropped: it would need a safety-CI exemption (never weakened), and silently rebinding a player's keys is the kind of behaviour the compliance rule rejects.
 6. **Publish (WOW-12).** Public fork and the upstream adapters PR were approved by Pedro on 2026-09-25 (GitHub only, no forum post). Publishing is external: prepare, then Pedro confirms before anything goes public.
 7. **Replies during combat** (done, PR #4). Video review 2026-10-03: two replies showed mid-fight (5:55, 6:45). Replies now wait for the fight to end.
 8. **Mentor workspace by default** (done, PR #13). The bridge started in Documents, so the agent ran as a general coding assistant and read unrelated files (0:00, 2:25, 2:55, 6:45). Start in the mentor workspace by default and warn in the window when the folder is a broad one like Documents. Metric: unrelated files read, 3+ in the video, target 0.
