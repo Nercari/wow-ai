@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const ptt = require('../../bridge/forever/modules/70-ptt');
 
-function fixture() {
+function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wowai-ptt-'));
   const ctx = {
     HERE: root, REPO: root, state: {}, submitted: [], logs: [],
@@ -16,6 +16,9 @@ function fixture() {
     log(...args) { this.logs.push(args.join(' ')); },
   };
   ptt.init(ctx);
+  // Close the watcher even when an assertion fails: an open fs.watch handle keeps
+  // the test process alive, so a failure showed up as a 10-minute CI hang.
+  t.after(() => { ptt.stop(); fs.rmSync(root, { recursive: true, force: true }); });
   ptt.onRun({ job: { session: 'game-session', chat: 'chat-1', cwd: root, agent: 'claude' } });
   return { root, ctx };
 }
@@ -25,8 +28,8 @@ function add(root) {
   return file;
 }
 
-test('PTT submits recent-strip text uniquely and deletes its file', () => {
-  const { root, ctx } = fixture();
+test('PTT submits recent-strip text uniquely and deletes its file', (t) => {
+  const { root, ctx } = fixture(t);
   const file = add(root);
   ptt.drain();
   assert.equal(ctx.submitted.length, 1);
@@ -34,11 +37,10 @@ test('PTT submits recent-strip text uniquely and deletes its file', () => {
   assert.equal(ctx.submitted[0].via, 'ptt');
   assert.ok(ctx.submitted[0].session.startsWith('ptt-'));
   assert.equal(fs.existsSync(file), false);
-  ptt.stop();
 });
 
-test('PTT drops stale strip and kill switch input and logs the reason', () => {
-  const { root, ctx } = fixture();
+test('PTT drops stale strip and kill switch input and logs the reason', (t) => {
+  const { root, ctx } = fixture(t);
   ctx.lastStripSeenAt = () => Date.now() - 10001;
   const stale = add(root);
   ptt.drain();
@@ -51,5 +53,4 @@ test('PTT drops stale strip and kill switch input and logs the reason', () => {
   assert.equal(ctx.submitted.length, 0);
   assert.equal(fs.existsSync(killed), false);
   assert.match(fs.readFileSync(path.join(root, 'bridge', 'ptt', 'ptt.log'), 'utf8'), /dropped: game in lockout or not running/);
-  ptt.stop();
 });
