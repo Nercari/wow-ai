@@ -2245,6 +2245,18 @@ function WoWAI.Notify(chat, text, agent, summary)
 	end
 end
 
+-- Opens the window on a chat with a ready question in the box. Nothing is sent;
+-- the player presses Enter.
+function WoWAI.AskInBox(chatId, text)
+	if not db then return end
+	if FindChat(chatId) then WoWAI.SwitchChat(chatId) end
+	WoWAI.Toggle(true)
+	if ui.input and text then
+		ui.input:SetText(text)
+		ui.input:SetFocus()
+	end
+end
+
 -- Clicks on our [reply] / [open] links in the chat frame.
 hooksecurefunc("SetItemRef", function(link)
 	local action, chatId = tostring(link):match("^wowai:(%a+):(%w+)")
