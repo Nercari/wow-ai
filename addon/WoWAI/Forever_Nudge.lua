@@ -19,7 +19,7 @@ local function Offer()
 	print("|cff7ec8ff[WoW AI]|r " .. nudge.lead .. " |Hwowai:ask:" .. c.id .. "|h|cff55ff55[" .. nudge.label .. "]|r|h")
 end
 
-local function QuestTitle(logIndex, questId)
+local function LookupTitle(logIndex, questId)
 	local title
 	if type(C_QuestLog) == "table" and type(C_QuestLog.GetTitleForQuestID) == "function" and tonumber(questId) then
 		local ok, t = pcall(C_QuestLog.GetTitleForQuestID, questId)
@@ -29,9 +29,14 @@ local function QuestTitle(logIndex, questId)
 		local ok, t = pcall(GetQuestLogTitle, logIndex)
 		if ok and type(t) == "string" and t ~= "" then title = t end
 	end
+	return title
+end
+
+-- The client names the accepted quest by log index (older builds) or quest id (newer).
+local function QuestTitle(a, b)
 	-- The remembered window title is good for one accept only, so a later accept
 	-- (an auto-accepted quest, say) can't be named after an earlier quest.
-	title = title or lastTitle
+	local title = LookupTitle(a, b) or LookupTitle(nil, a) or lastTitle
 	lastTitle = nil
 	return title
 end

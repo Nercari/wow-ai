@@ -91,3 +91,9 @@ test('quest nudge: a title remembered from an earlier quest is not reused for th
   v.run('STUB.FireEvent("QUEST_ACCEPTED", 2, 6)');
   assert.ok(v.get('WoWAI.askText').includes('a new quest'), 'no stale name');
 });
+
+test('quest nudge: a client that passes only the quest id still gets the quest named', () => {
+  const v = vm();
+  v.run('C_QuestLog = { GetTitleForQuestID = function(id) return id == 77 and "Fiddlesticks" or nil end }; STUB.FireEvent("QUEST_ACCEPTED", 77)');
+  assert.ok(v.get('WoWAI.askText').includes('"Fiddlesticks"'));
+});
