@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- **"explain this quest" link after you accept a quest.** Like the level-up one: once combat is over, one chat line "Quest accepted. [explain this quest]" puts a ready question (with the quest's name when the game gives it) in the box; you still press Enter. Silent while the AI is off. Seen missing at 12:50 and 14:30 of the second 2026-10-03 recording.
 - **Fast model offered for short questions.** The empty-chat card gets one more button, "Short questions? Use the fast model (haiku)", when the chat's agent has a haiku model and the chat is not on it yet. A click switches this chat's model; nothing is sent. In the second 2026-10-03 recording answers took 80 to 90 seconds.
 - **Follow-up buttons under the newest reply.** Two one-click buttons: "Review my last fight" (same command as the Review button) and "What should I buy first?" (types the question; you press Enter). They show only on a finished reply, not while one is pending, and are hidden in a fight. Asked for after the rotation answer at 5:05 of the second 2026-10-03 recording.
 - **Ask about quest rewards.** When a quest offers a choice of rewards, an **Ask WoW AI** button appears under the reward window. One click puts the offered item names into the question box ("Which fits my class and spec best?"); you still press Enter to send and you still pick and click the reward yourself. Hidden in a fight, with one reward, or while the AI is off.
