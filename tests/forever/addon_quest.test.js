@@ -56,3 +56,10 @@ test('quest reward button: hidden with one reward, in combat, and while the AI i
   v.run('WoWAIForeverDB = WoWAIForeverDB or {}; WoWAIForeverDB.off = true; STUB.FireEvent("QUEST_COMPLETE")');
   assert.equal(v.get('WoWAIQuestAsk'), 'nil');
 });
+
+test('quest reward button: a click does nothing once a fight has started', () => {
+  const v = vm();
+  v.run('STUB.FireEvent("QUEST_COMPLETE")');
+  v.run('STUB.combat = true; STUB.FireEvent("PLAYER_REGEN_DISABLED"); WoWAIQuestAsk.scripts.OnClick()');
+  assert.ok(!v.get('table.concat(STUB.texts, "|")').includes('Executor Staff, Forsaken Dagger'));
+});
