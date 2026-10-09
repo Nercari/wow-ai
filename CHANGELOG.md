@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Allow really unblocks.** A blocked piped command such as `ls | head` now asks for every part, so one click on Allow lets the retry run. The game chat prints one fixed line ("Needs your OK to continue. Open the window and click Allow.") instead of the command, and the Allow button names the commands plainly. The mentor prompt no longer talks about git, shells or the tools folder.
+
 ### Added
 
 - **The window folds away in a fight.** When combat, an encounter or a challenge run starts, an open WoW AI window collapses to the small bar and opens again when it ends, so no AI advice is on screen while you fight. A window you had closed stays closed, and opening or closing it by hand in a fight wins. In the second 2026-10-03 recording a rotation list stayed readable for about 10 seconds in a fight.
