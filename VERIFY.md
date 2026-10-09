@@ -50,3 +50,51 @@ npm test                  -> exit 0
 # skipped 0
 >>> CODEC ROUND-TRIP PASS
 ```
+
+### Trimmed CLI output behind each row (ticket 41, 2026-10-09)
+
+```
+$ claude --help (trimmed)
+  --effort <level>   Effort level for the current session (low, medium, high, xhigh, max)
+  --model <model>    Model for the current session. Provide an alias for the latest model
+                     (e.g. 'fable', 'opus', or 'sonnet') or a model's full name.
+
+$ python: ~/.codex/models_cache.json (fetched_at 2026-10-02T10:27:47Z, client_version 0.159.2)
+top keys ['fetched_at', 'etag', 'client_version', 'identity', 'models']
+slug                         visibility  default_reasoning_level  supported_reasoning_levels[].effort
+gpt-6.1-sol                  list  low     low medium high xhigh max ultra
+gpt-6-astra                  list  medium  low medium high xhigh max ultra
+gpt-6-sol                    list  medium  low medium high xhigh max ultra
+gpt-6-luna                   list  medium  low medium high xhigh max
+gpt-reserve                  hide  medium  low medium high xhigh max
+gpt-5.6-sol                  list  low     low medium high xhigh max ultra
+gpt-5.6-terra                list  medium  low medium high xhigh max ultra
+gpt-5.6-luna                 list  medium  low medium high xhigh max
+gpt-daybreak-blue-latest     list  low     low medium high xhigh max ultra
+gpt-5.5                      list  medium  low medium high xhigh
+codex-auto-review            hide  medium  low medium high xhigh max
+
+$ agy --help (trimmed)
+  --effort   Reasoning effort for the current CLI session (low|medium|high|xhigh|max)
+  --model    Model for the current CLI session
+$ agy models --output-format json
+Error: flags provided but not defined: -output-format
+$ agy models
+gemini-3.8-flash-high / -medium / -low    Gemini 3.8 Flash (High|Medium|Low)
+gemini-3.7-flash-high / -medium / -low    Gemini 3.7 Flash (High|Medium|Low)
+gemini-3.6-flash-high / -medium / -low    Gemini 3.6 Flash (High|Medium|Low)
+gemini-3.1-pro-high / -low                Gemini 3.1 Pro (High|Low)
+claude-opus-5-5-low / -medium / -high     Claude Opus 5.5 (Low|Medium|High)
+claude-sonnet-5-5-low / -medium / -high   Claude Sonnet 5.5 (Low|Medium|High)
+gpt-oss-120b-medium                       GPT-OSS 120B (Medium)
+
+$ hermes --version
+Hermes Agent v0.21.5+9123.g49eb4f4 (2026.9.24)
+$ hermes chat --help (trimmed)
+  -m, --model MODEL    Model to use (e.g., anthropic/claude-sonnet-4)
+  --reasoning LEVEL    Reasoning effort for this session: none, minimal, low, medium, high,
+                       xhigh, max, or ultra. Overrides agent.reasoning_effort for this run only
+  --provider PROVIDER  Inference provider (default: auto).
+
+$ grok: not on PATH; ls ~/.grok -> No such file or directory
+```
