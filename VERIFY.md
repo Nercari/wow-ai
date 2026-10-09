@@ -16,8 +16,8 @@ In-game behavior cannot be verified by an agent. Only Pedro can run the game; a 
 npm ci                    -> exit 0
 node tools/safety-ci.js   -> exit 0
 npm test                  -> exit 0
-# tests 268
-# pass 265
+# tests 279
+# pass 276
 # fail 0
 # skipped 3
 >>> CODEC ROUND-TRIP PASS
