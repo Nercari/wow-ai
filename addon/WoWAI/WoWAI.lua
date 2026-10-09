@@ -708,7 +708,7 @@ local function ActivityLine(chat)
 			local quiet = now - a.last
 			s = s .. ", last " .. FmtDur(quiet) .. " ago"
 			if quiet > 120 then s = s .. " (quiet for a while - stuck? /wow-ai cancel)" end
-		elseif now - started > 60 then
+		elseif count == 0 and now - started > 60 then
 			s = s .. ", no activity seen yet"
 		end
 	end
@@ -1768,21 +1768,21 @@ function WoWAI.UpdateStatus()
 			elseif run.slotsExhausted then
 				s = "Slot pool used up this session - next keypress reloads to free it"
 			elseif run.pixelFailed then
-				s = "Bridge didn't see #" .. id .. " after " .. STRIP_TRIES .. " tries - next keypress switches to the reload path (or /wow-ai reload)"
+				s = "Bridge didn't see your message after " .. STRIP_TRIES .. " tries - next keypress switches to the reload path (or /wow-ai reload)"
 			elseif c.progress or (run.act and run.act[c.id] and run.act[c.id].count > 0) then
-				s = ChatAgentName(c) .. " is working on #" .. id .. " - " .. ActivityLine(c)
+				s = ChatAgentName(c) .. " is working - " .. ActivityLine(c)
 			elseif rec and not rec.acked then
-				s = "Sending #" .. id .. (rec.tries and rec.tries > 1 and (" (try " .. rec.tries .. "/" .. STRIP_TRIES .. ")") or "") .. "..."
+				s = "Sending" .. (rec.tries and rec.tries > 1 and (" (try " .. rec.tries .. "/" .. STRIP_TRIES .. ")") or "") .. "..."
 				local state = WoWAI.BridgeState()
 				if state == "down" then s = s .. " - bridge not seen lately, is the bridge running?" end
 			else
-				s = "Waiting for #" .. id .. " (checked " .. (run.polls or 0) .. "x)"
+				s = "Waiting for the reply (checked " .. (run.polls or 0) .. "x)"
 				if elapsed > 45 then
 					s = s .. " - no sign of the bridge. Is the bridge running? /wow-ai resend"
 				end
 			end
 		else
-			s = "Waiting for reply #" .. id .. ". Enter or Refresh checks now"
+			s = "Waiting for the reply. Enter or Refresh checks now"
 			if db.settings.autoRefresh then
 				s = s .. "; auto on next keypress after " .. db.settings.interval .. "s"
 			end
@@ -1799,7 +1799,7 @@ function WoWAI.UpdateStatus()
 		else
 			s = "Not connected - start the bridge, then click Connect"
 		end
-	elseif c and c.draft and c.draft ~= "" then
+	elseif c and c.draft and c.draft ~= "" and ui.input and Trim(ui.input:GetText() or "") ~= "" then
 		s = "Reply arrived. Your draft is back in the box - Enter to send it"
 	elseif run.restoring then
 		s = "Connecting to the bridge..."
@@ -2006,9 +2006,9 @@ function WoWAI.Render()
 		end
 		if c.pendingId then
 			local p = c.progress
-			-- No timer here: the bubble is drawn once and went stale next to the live status line.
+			-- No timer or status text here: the bubble is drawn once, goes stale next to the
+			-- live status line, and its text read as part of the AI's own message.
 			local head = "working..."
-			if run.statusText and run.statusText ~= "" then head = head .. "\n" .. run.statusText end
 			Place("assistant", (p and p ~= "") and (head .. "\n\n" .. p) or head, "", true, nil, ChatAgent(c))
 		elseif #c.history == 0 then
 			if run.restoring then
@@ -3220,7 +3220,7 @@ SlashCmdList["WOWAI"] = function(msg)
 		WoWAI.Toggle(true)
 	elseif cmd == "cancel" then
 		if c.pendingId then
-			AddHistory(c, "system", "Gave up waiting on #" .. c.pendingId)
+			AddHistory(c, "system", "Gave up waiting for the reply")
 			run.outbound[c.pendingId] = nil
 			if run.act then run.act[c.id] = nil end
 			c.pendingId = nil
