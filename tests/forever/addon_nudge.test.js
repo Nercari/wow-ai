@@ -54,3 +54,32 @@ test('level-up nudge waits for combat to end and stays quiet while the AI is off
   v.run('WoWAIForeverDB = WoWAIForeverDB or {}; WoWAIForeverDB.off = true; STUB.FireEvent("PLAYER_LEVEL_UP", 5)');
   assert.ok(!prints(v).includes('Level 5!'));
 });
+
+test('quest nudge: one chat line after accepting a quest out of combat; the link fills the box and sends nothing', () => {
+  const v = vm();
+  v.run('STUB.FireEvent("QUEST_DETAIL")');
+  v.run('GetTitleText = function() return "Fiddlesticks" end; STUB.FireEvent("QUEST_DETAIL")');
+  v.run('STUB.FireEvent("QUEST_ACCEPTED", 3, 77)');
+  assert.ok(prints(v).includes('Quest accepted.'));
+  assert.ok(prints(v).includes('[explain this quest]'));
+  assert.ok(prints(v).includes('|Hwowai:ask:'));
+  assert.equal(v.get('WoWAIDB.chats[1].pendingId'), 'nil', 'nothing was sent');
+  v.run('SetItemRef("wowai:ask:" .. WoWAIDB.chats[1].id)');
+  assert.ok(v.get('table.concat(STUB.texts, "|")').includes('I just accepted the quest "Fiddlesticks". Explain what it asks of me, without spoilers.'));
+  assert.equal(v.get('WoWAIDB.chats[1].pendingId'), 'nil', 'the player still has to press Enter');
+});
+
+test('quest nudge waits out combat, shows once, and stays quiet while the AI is off', () => {
+  let v = vm();
+  v.run('STUB.combat = true; STUB.FireEvent("PLAYER_REGEN_DISABLED"); STUB.FireEvent("QUEST_ACCEPTED", 1, 5)');
+  assert.ok(!prints(v).includes('Quest accepted.'), 'nothing in combat');
+  v.run('STUB.combat = false; STUB.FireEvent("PLAYER_REGEN_ENABLED")');
+  assert.ok(prints(v).includes('Quest accepted.'), 'offered once combat ends');
+  assert.ok(v.get('WoWAI.askText').includes('a new quest'), 'no title known');
+  v.run('STUB.prints = {}; STUB.FireEvent("PLAYER_REGEN_DISABLED"); STUB.FireEvent("PLAYER_REGEN_ENABLED")');
+  assert.ok(!prints(v).includes('Quest accepted.'), 'offered only once');
+
+  v = vm();
+  v.run('WoWAIForeverDB = WoWAIForeverDB or {}; WoWAIForeverDB.off = true; STUB.FireEvent("QUEST_ACCEPTED", 1, 5)');
+  assert.ok(!prints(v).includes('Quest accepted.'));
+});
