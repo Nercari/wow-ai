@@ -29,7 +29,11 @@ local function QuestTitle(logIndex, questId)
 		local ok, t = pcall(GetQuestLogTitle, logIndex)
 		if ok and type(t) == "string" and t ~= "" then title = t end
 	end
-	return title or lastTitle
+	-- The remembered window title is good for one accept only, so a later accept
+	-- (an auto-accepted quest, say) can't be named after an earlier quest.
+	title = title or lastTitle
+	lastTitle = nil
+	return title
 end
 
 WoWAIForever.On("LOCKOUT_CHANGED", function(locked) if not locked then Offer() end end)
@@ -51,7 +55,7 @@ WoWAIForever.Register({
 			return
 		else
 			-- The client names the quest by log index (older builds) or quest id (newer).
-			local title = QuestTitle(a, b) or QuestTitle(nil, a)
+			local title = QuestTitle(a, b)
 			local what = title and ("the quest \"" .. title:gsub("[%c\"]", "") .. "\"") or "a new quest"
 			pending = {
 				lead = "Quest accepted.", label = "explain this quest",

@@ -83,3 +83,11 @@ test('quest nudge waits out combat, shows once, and stays quiet while the AI is 
   v.run('WoWAIForeverDB = WoWAIForeverDB or {}; WoWAIForeverDB.off = true; STUB.FireEvent("QUEST_ACCEPTED", 1, 5)');
   assert.ok(!prints(v).includes('Quest accepted.'));
 });
+
+test('quest nudge: a title remembered from an earlier quest is not reused for the next accept', () => {
+  const v = vm();
+  v.run('GetTitleText = function() return "Fiddlesticks" end; STUB.FireEvent("QUEST_DETAIL"); STUB.FireEvent("QUEST_ACCEPTED", 1, 5)');
+  assert.ok(v.get('WoWAI.askText').includes('Fiddlesticks'));
+  v.run('STUB.FireEvent("QUEST_ACCEPTED", 2, 6)');
+  assert.ok(v.get('WoWAI.askText').includes('a new quest'), 'no stale name');
+});
