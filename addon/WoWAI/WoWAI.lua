@@ -1922,6 +1922,31 @@ function WoWAI.StarterQuestions()
 	}
 end
 
+-- The starter card's buttons: the four questions, then (if offered) a button
+-- that switches the chat to the fast model. Short questions answer sooner there.
+function WoWAI.StarterList(c)
+	local list = WoWAI.StarterQuestions()
+	local fast = WoWAI.FastModelOffer(c)
+	if fast then
+		fast.label = "Short questions? Use the fast model (" .. fast.model .. ")"
+		table.insert(list, fast)
+	end
+	return list
+end
+
+-- A fast model of the chat's agent (haiku for Claude), offered on the starter card
+-- for short questions. Nil when the chat already uses it or the agent has none.
+function WoWAI.FastModelOffer(c)
+	local agent = c and ((c.agent and c.agent ~= "") and c.agent or run.bridgeAgent) or nil
+	if not agent or agent == "" then return nil end
+	for _, m in ipairs(ModelsFor(agent) or {}) do
+		if m:lower():find("haiku", 1, true) then
+			if m == ChatModel(c) then return nil end
+			return { agent = agent, model = m }
+		end
+	end
+end
+
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
@@ -1970,11 +1995,14 @@ function WoWAI.Render()
 			local cmds = starters or ((role == "assistant" and not dim) and WoWAI.CommandLines(text) or {})
 			b.copies = b.copies or {}
 			for k, cmd in ipairs(cmds) do
+				local pool = type(cmd) == "table" and cmd or nil
+				if pool then cmd = pool.label end
 				local cb = b.copies[k]
 				if not cb then
 					cb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
 					cb:SetHeight(20)
 					cb:SetScript("OnClick", function(self)
+						if self.pool then return WoWAI.SetPool(FindChat(self.pool.chat), self.pool.agent, self.pool.model) end
 						if not self.fill then return WoWAI.ShowCopy(self.line) end
 						if ui.input then ui.input:SetText(self.line); ui.input:SetFocus() end
 					end)
@@ -1984,6 +2012,7 @@ function WoWAI.Render()
 				cb:SetText(label)
 				cb:SetWidth(math.min(width - 24, cb:GetFontString():GetStringWidth() + 30))
 				cb.line = cmd
+				cb.pool = pool and { chat = c.id, agent = pool.agent, model = pool.model } or nil
 				cb.fill = starters ~= nil
 				cb:ClearAllPoints()
 				cb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
@@ -2016,7 +2045,7 @@ function WoWAI.Render()
 			elseif not WoWAI.IsConnected() then
 				Place("system", "Not connected to the bridge. Start it (npm start in the wow-ai folder, or wow-ai in your project), then click Connect below.", "", true)
 			else
-				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterQuestions())
+				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterList(c))
 			end
 		end
 		for i = n + 1, #ui.bubbles do

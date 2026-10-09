@@ -444,6 +444,22 @@ test('an empty chat offers four starter questions fitted to class and level; a c
   assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null, 'nothing is sent by itself');
 });
 
+test('the starter card offers the fast model for short questions, once; a click switches the chat and sends nothing', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('STUB.RunTimers()');
+  nextSlot(vm, '{ now = time(), cwd = "", agent = "claude", agents = { "claude" }, models = { claude = { "opus", "sonnet", "haiku" } }, replies = {} }');
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  vm.run('WoWAI.Toggle(true); WoWAI.Render()');
+  const hint = 'Short questions? Use the fast model (haiku)';
+  const shown = () => vm.evaluate('table.concat(STUB.texts, "|")').includes(hint);
+  assert.equal(vm.evaluate('WoWAI.FastModelOffer(WoWAIDB.chats[1]) ~= nil'), 'true');
+  assert.ok(shown(), 'the offer is drawn as a button');
+  vm.run('WoWAI.SetPool(WoWAIDB.chats[1], "claude", "haiku")');
+  assert.equal(vm.evaluate('WoWAI.FastModelOffer(WoWAIDB.chats[1])'), null, 'nothing to offer once on haiku');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null, 'nothing is sent by itself');
+});
+
 test('each slash command in a reply gets a copy button that opens the copy box with only that line', () => {
   const vm = newVM();
   login(vm);
