@@ -10,7 +10,7 @@ Merge evidence for wow-ai. Run these from the repo root and paste their real out
 
 In-game behavior cannot be verified by an agent. Only Pedro can run the game; a PR that changes the addon gives him a short checklist and says the in-game part is unverified.
 
-## Output (2026-10-09, `forever` e53fc42 plus branch `claude/mentor-file-tools`, Linux)
+## Output (2026-10-09, `forever` e53fc42 plus branch `claude/mentor-file-tools` with the PTT stale-time fix, Linux)
 
 ```
 npm ci                    -> exit 0

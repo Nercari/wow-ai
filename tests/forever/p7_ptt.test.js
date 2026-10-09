@@ -41,7 +41,10 @@ test('PTT submits recent-strip text uniquely and deletes its file', (t) => {
 
 test('PTT drops stale strip and kill switch input and logs the reason', (t) => {
   const { root, ctx } = fixture(t);
-  ctx.lastStripSeenAt = () => Date.now() - 10001;
+  // A fixed time: `Date.now() - 10001` read again inside drain() is only 10000 ms old
+  // when the clock ticks between the two reads, and the input was submitted (#43 CI).
+  const staleAt = Date.now() - 20000;
+  ctx.lastStripSeenAt = () => staleAt;
   const stale = add(root);
   ptt.drain();
   assert.equal(ctx.submitted.length, 0);
