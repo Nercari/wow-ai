@@ -15,13 +15,13 @@ For each agent, the picker offers the same models the CLI's own picker offers, u
 
 ## What each CLI offers (checked 2026-10-09)
 
-Labels: OBSERVED (read in the CLI's own source or run here), DOCUMENTED (official docs), UNVERIFIED (third-party or inferred). Ticket 41 confirms every UNVERIFIED line on Pedro's PC before the bridge relies on it.
+Labels: OBSERVED (read in the CLI's own source or run here), DOCUMENTED (official docs), UNVERIFIED (third-party or inferred). Ticket 41 confirms every UNVERIFIED line on Pedro's PC. Until it has, the catalog (ticket 42) leaves those lines out and the bridge (ticket 43) passes no flag that depends on them.
 
 ### Claude Code (`claude`, 2.1.296 here)
 
 - Models: the `--model` aliases `fable`, `opus`, `sonnet`, `haiku`, plus `opus[1m]`, `sonnet[1m]`, `fable[1m]` and `opusplan` when the account has them. No model flag means the CLI default. DOCUMENTED: https://code.claude.com/docs/en/model-config ; OBSERVED in `claude --help`.
 - Effort: `--effort low|medium|high|xhigh|max`. OBSERVED in `claude --help`. Per model (DOCUMENTED, model-config page): Fable, Opus 5.x and Sonnet 5.x take all five; Opus 4.6 and Sonnet 4.6 take low, medium, high, max; Haiku takes none. Default high, except Opus 5.5 and Sonnet 5.5 (medium). An unsupported level is clamped down, not refused.
-- Not offered: `--effort ultracode`. It starts multi-agent workflows and burns usage far beyond a chat reply.
+- Not offered: `--effort ultracode` (DOCUMENTED as "xhigh plus ultracode", Claude Code 2.1.203 or later, https://code.claude.com/docs/en/cli-reference ; not in `claude --help` here). UNVERIFIED: that ultracode starts multi-agent workflows that cost far more usage than a chat reply. Left out either way, since a chat reply does not need it.
 - No machine-readable model list for the account (DOCUMENTED absence). The list stays built in.
 - Bridge flag: `--effort <level>` next to `--model`.
 
@@ -42,7 +42,7 @@ Labels: OBSERVED (read in the CLI's own source or run here), DOCUMENTED (officia
 
 - gpt-5.5 retires for ChatGPT sign-in on 2026-10-14 (DOCUMENTED, https://learn.chatgpt.com/docs/models). Max and Ultra depend on the account's plan (same page).
 - The CLI keeps the live catalog for the signed-in account in `~/.codex/models_cache.json` (OBSERVED in `models-manager/src/manager.rs`; file shape UNVERIFIED). Ticket 46 reads it.
-- Bridge flags: `-m <slug>` (DOCUMENTED) and `-c model_reasoning_effort=<level>` (key OBSERVED in `codex-rs/config/src/config_toml.rs`; behaviour through `exec` UNVERIFIED until ticket 41).
+- Bridge flags: `-m <slug>` (DOCUMENTED, `codex exec -m gpt-6.1-sol` example on https://learn.chatgpt.com/docs/models) and `-c model_reasoning_effort=<level>` (key OBSERVED in `codex-rs/config/src/config_toml.rs`; behaviour through `exec` UNVERIFIED until ticket 41).
 
 ### Grok Build (`grok`)
 
@@ -59,7 +59,7 @@ Labels: OBSERVED (read in the CLI's own source or run here), DOCUMENTED (officia
 ### Hermes (`hermes chat`)
 
 - Models: whatever the player configured; `-m <provider/model>` with an optional `--provider` (DOCUMENTED, https://hermes-agent.nousresearch.com/docs/reference/cli-commands). Default from `model.default` in `config.yaml`. No machine-readable list. The list stays `agents.hermes.models` in `config.json`.
-- Effort: `agent.reasoning_effort` in `config.yaml`, values none, minimal, low, medium, high, xhigh, default medium (DOCUMENTED, `cli-config.yaml.example`). A per-run `--reasoning` option is INFERRED: `hermes_cli/main.py` forwards `args.reasoning` to the chat, but the flag's spelling and values are not confirmed.
+- Effort: `agent.reasoning_effort` in `config.yaml`, values none, minimal, low, medium, high, xhigh, default medium (DOCUMENTED, `cli-config.yaml.example`). A per-run `--reasoning` option is UNVERIFIED (inferred): `hermes_cli/main.py` forwards `args.reasoning` to the chat, but the flag's spelling and values are not confirmed.
 - Bridge flag: the per-run option only, after ticket 41 confirms it. Never write the player's `config.yaml` from the bridge; without a per-run option Hermes offers no effort in game.
 
 ## Design
@@ -82,19 +82,19 @@ Each ticket: one PR into `forever`, `node tools/safety-ci.js` and `npm test` gre
 
 - Needs: nothing. Runs on Pedro's PC through Remote Control; no game.
 - Do: run and record the output (trimmed, no account data) of `claude --help`, `codex --version`, a one-line `codex exec --json -m gpt-6-sol -c model_reasoning_effort=high -` run, the head of `~/.codex/models_cache.json`, `grok --help`, `grok models`, `agy --version`, `agy --help`, `agy models --output-format json`, `hermes chat --help`. Missing CLIs are noted as missing.
-- Done when: a "Confirmed on Pedro's PC" section in this file says, per UNVERIFIED line above, confirmed, wrong (with the real value) or not installed.
+- Done when: a "Confirmed on Pedro's PC" section in this file says, for every UNVERIFIED line above and every catalog row that ticket 42 left out, confirmed, wrong (with the real value) or not installed; and the catalog in `bridge/models.js` (if ticket 42 has merged) gains the confirmed rows in the same PR.
 
 ### 42. Built-in model catalog
 
-- Needs: nothing (use the tables above; ticket 41 corrections land as a follow-up edit).
+- Needs: nothing. It ships only the OBSERVED and DOCUMENTED rows: Claude's aliases and levels, Codex's models and levels, Grok's `grok-build` with no levels. agy, Hermes and the UNVERIFIED rows wait for ticket 41.
 - Do: add `bridge/models.js` with the catalog; `modelChoices()` reads it instead of `DEFAULT_MODELS`; `config.json` `models` still wins and accepts strings or `{ id, efforts, defaultEffort }` objects. Only listed models are included (no hidden Codex models). Update `docs/CONFIGURATION.md`.
-- Tests: per agent, the catalog's ids and levels equal the tables above; a config list overrides it; bad tokens are dropped as today.
+- Tests: per agent, the catalog's ids and levels equal the OBSERVED and DOCUMENTED rows above; a config list overrides it; bad tokens are dropped as today.
 - Metric: models offered per agent with no config, Claude 3 / others 0 → the table counts.
 
 ### 43. Effort on the command line
 
-- Needs: 42.
-- Do: `parseFlags` and the reload job reader accept `effort=`; `runJob` refuses a level the catalog lacks for that model with a one-line reason; each agent's `args()` adds its flag: Claude `--effort`, Codex `-c model_reasoning_effort=`, Grok `--effort`, agy none (level is in the id), Hermes the per-run option only if ticket 41 confirmed it. No level means no flag.
+- Needs: 42; for the Codex, Grok and Hermes flags also 41 (until then those agents get no effort flag).
+- Do: `parseFlags` and the reload job reader accept `effort=`; `runJob` refuses a level the catalog lacks for that model with a one-line reason; each agent's `args()` adds its flag: Claude `--effort`, Codex `-c model_reasoning_effort=`, Grok `--effort`, agy none (level is in the id), Hermes the per-run option. Each flag only once ticket 41 has confirmed it; Claude's is OBSERVED and goes in at once. No level means no flag.
 - Tests: the argv of each agent with and without a level; an unknown level is refused; `ultracode` is refused for Claude.
 
 ### 44. Effort levels in the inbox
