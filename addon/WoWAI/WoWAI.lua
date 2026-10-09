@@ -1922,6 +1922,39 @@ function WoWAI.StarterQuestions()
 	}
 end
 
+-- The starter card's buttons: the four questions, then (if offered) a button
+-- that switches the chat to the fast model. Short questions answer sooner there.
+function WoWAI.StarterList(c)
+	local list = WoWAI.StarterQuestions()
+	local fast = WoWAI.FastModelOffer(c)
+	if fast then
+		fast.label = "Short questions? Use the fast model (" .. fast.model .. ")"
+		table.insert(list, fast)
+	end
+	return list
+end
+
+-- A fast model of the chat's agent (haiku for Claude), offered on the starter card
+-- for short questions. Nil when the chat already uses it or the agent has none.
+function WoWAI.FastModelOffer(c)
+	local agent = c and ((c.agent and c.agent ~= "") and c.agent or run.bridgeAgent) or nil
+	if not agent or agent == "" then return nil end
+	for _, m in ipairs(ModelsFor(agent) or {}) do
+		if m:lower():find("haiku", 1, true) then
+			if m == ChatModel(c) then return nil end
+			return { agent = agent, model = m }
+		end
+	end
+end
+
+-- One-click follow-ups under the newest finished reply. A question click types it
+-- into the box (the player presses Enter); "Review my last fight" is the same
+-- command as the window's Review button.
+WoWAI.FOLLOW_UPS = {
+	{ label = "Review my last fight", cmd = "review" },
+	{ label = "What should I buy first?", fill = "What should I buy first, and where do I get it?" },
+}
+
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
@@ -1934,7 +1967,7 @@ function WoWAI.Render()
 		if not width or width < 80 then width = 400 end
 		ui.content:SetWidth(width)
 		local y, n = 0, 0
-		local function Place(role, text, when, dim, denied, agent, starters)
+		local function Place(role, text, when, dim, denied, agent, starters, follow)
 			n = n + 1
 			local b = GetBubble(n)
 			local st = ROLE_STYLE[role] or ROLE_STYLE.system
@@ -1970,11 +2003,14 @@ function WoWAI.Render()
 			local cmds = starters or ((role == "assistant" and not dim) and WoWAI.CommandLines(text) or {})
 			b.copies = b.copies or {}
 			for k, cmd in ipairs(cmds) do
+				local pool = type(cmd) == "table" and cmd or nil
+				if pool then cmd = pool.label end
 				local cb = b.copies[k]
 				if not cb then
 					cb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
 					cb:SetHeight(20)
 					cb:SetScript("OnClick", function(self)
+						if self.pool then return WoWAI.SetPool(FindChat(self.pool.chat), self.pool.agent, self.pool.model) end
 						if not self.fill then return WoWAI.ShowCopy(self.line) end
 						if ui.input then ui.input:SetText(self.line); ui.input:SetFocus() end
 					end)
@@ -1984,6 +2020,7 @@ function WoWAI.Render()
 				cb:SetText(label)
 				cb:SetWidth(math.min(width - 24, cb:GetFontString():GetStringWidth() + 30))
 				cb.line = cmd
+				cb.pool = pool and { chat = c.id, agent = pool.agent, model = pool.model } or nil
 				cb.fill = starters ~= nil
 				cb:ClearAllPoints()
 				cb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
@@ -1991,6 +2028,35 @@ function WoWAI.Render()
 				extra = extra + 24
 			end
 			for k = #cmds + 1, #b.copies do b.copies[k]:Hide() end
+			b.follows = b.follows or {}
+			local nfollow = 0
+			if follow and not (WoWAIForever and WoWAIForever.Locked and WoWAIForever.Locked()) then
+				for _, fu in ipairs(WoWAI.FOLLOW_UPS) do
+					nfollow = nfollow + 1
+					local fb = b.follows[nfollow]
+					if not fb then
+						fb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+						fb:SetHeight(20)
+						fb:SetScript("OnClick", function(self)
+							if self.cmd then
+								SlashCmdList["WOWAI"](self.cmd)
+							elseif ui.input then
+								ui.input:SetText(self.fill)
+								ui.input:SetFocus()
+							end
+						end)
+						b.follows[nfollow] = fb
+					end
+					fb:SetText(fu.label)
+					fb:SetWidth(math.min(width - 24, fb:GetFontString():GetStringWidth() + 30))
+					fb.cmd, fb.fill = fu.cmd, fu.fill
+					fb:ClearAllPoints()
+					fb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
+					fb:Show()
+					extra = extra + 24
+				end
+			end
+			for k = nfollow + 1, #b.follows do b.follows[k]:Hide() end
 			b:SetHeight(6 + 12 + 4 + h + 8 + extra)
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", ui.content, "TOPLEFT", 0, -y)
@@ -2002,7 +2068,8 @@ function WoWAI.Render()
 		for i, m in ipairs(c.history) do
 			-- The Allow button only makes sense on the newest reply, and only while idle.
 			local denied = (i == last and not c.pendingId and type(m.denied) == "table" and #m.denied > 0) and m.denied or nil
-			Place(m.role, m.text, m.t and date("%H:%M", m.t) or "", false, denied, m.agent)
+			local follow = i == last and not c.pendingId and m.role == "assistant" and not denied
+			Place(m.role, m.text, m.t and date("%H:%M", m.t) or "", false, denied, m.agent, nil, follow)
 		end
 		if c.pendingId then
 			local p = c.progress
@@ -2016,7 +2083,7 @@ function WoWAI.Render()
 			elseif not WoWAI.IsConnected() then
 				Place("system", "Not connected to the bridge. Start it (npm start in the wow-ai folder, or wow-ai in your project), then click Connect below.", "", true)
 			else
-				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterQuestions())
+				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterList(c))
 			end
 		end
 		for i = n + 1, #ui.bubbles do
@@ -2784,7 +2851,7 @@ local function BuildUI()
 
 	-- Same as typing /ai review: the command attaches the last fight's start and
 	-- end times, which a plain "review my fight" message does not carry.
-	local review = MakeButton(f, "Review last fight", 120, function() SlashCmdList["WOWAI"]("review") end)
+	local review = MakeButton(f, "Review last fight", 112, function() SlashCmdList["WOWAI"]("review") end)
 	review:SetPoint("LEFT", pool, "RIGHT", 6, 0)
 	review:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -2795,8 +2862,20 @@ local function BuildUI()
 	review:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.review = review
 
+	-- Same as typing /ai death: the command attaches the recent deaths.
+	local death = MakeButton(f, "Why did I die?", 100, function() SlashCmdList["WOWAI"]("death") end)
+	death:SetPoint("LEFT", review, "RIGHT", 6, 0)
+	death:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Why did I die?")
+		GameTooltip:AddLine("Asks the mentor about your last death (same as /ai death). Out of combat only.", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	death:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.death = death
+
 	local resend = MakeButton(f, "Resend", 70, WoWAI.Resend)
-	resend:SetPoint("LEFT", review, "RIGHT", 6, 0)
+	resend:SetPoint("LEFT", death, "RIGHT", 6, 0)
 	resend:Hide()
 	ui.resend = resend
 

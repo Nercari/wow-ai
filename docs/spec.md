@@ -13,7 +13,7 @@ Baseline (2026-10-03, `forever` at cbebd5a): `npm test` 187/187 pass, codec roun
 5. **Upstream.** Compare with `chelinho139/wow-ai` main; bring in useful upstream fixes by PR, keeping `forever` behaviour.
 6. **Measured improvement.** Each improvement PR names one number (a test count, a gate passed, a failure fixed) before and after.
 
-## Backlog (numbered; next free: 41)
+## Backlog (numbered; next free: 47)
 
 1. **Live gates (WOW-02).** Pedro runs `probe/PROBE.md` on the installed Forever client; agents turn the results into the gate table and switch features to their fallback where a gate fails. Needs Pedro in game.
 2. **Live column.** Fill the Live column of the coverage doc from Pedro's in-game checks, one short checklist per batch.
@@ -56,8 +56,17 @@ Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17
 35. **Copy icon per message** instead of the "Click to copy this message" tooltip that follows the mouse and hides the text (2:45, 5:05, 7:47, 10:07).
 36. **Reply formatting and background.** Backticks and `**` show raw (7:47, 11:07); names and damage numbers show through the reply text (5:20, 7:47).
 37. **Mentor wording.** No developer talk to the player ("this folder is not a git repo", 7:02; "the shell command I tried was blocked", 8:37) and no listing of folders outside the workspace (7:42). Fix in `mentor/AGENTS.md`.
-38. **New-quest nudge.** After a quest is accepted out of combat (12:50, 14:30), a chat link "[explain this quest]", like the level-up nudge (item 21).
+38. **New-quest nudge** (done, this PR; live look pending). After a quest is accepted out of combat (12:50, 14:30), a chat link "[explain this quest]", like the level-up nudge (item 21).
 39. **Quest reward question** (done, this PR; live look pending). A button next to the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks. Was: a link on the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks.
-40. **Follow-up buttons and session recap.** Session recap done (this PR; live look pending): `/ai recap`, `tools/session-recap.js`, and a chat offer after a fight and 5 quiet minutes. Follow-up buttons still open. Was: One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
+40. **Follow-up buttons and session recap.** (follow-up buttons done; session recap done, this PR, live look pending: `/ai recap`, `tools/session-recap.js`, a chat offer after a fight and 5 quiet minutes) One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
+
+Items 41 to 46 make the AI picker match each CLI's own models and effort levels (Pedro, 2026-10-09). Spec, sources and ticket details: `docs/model-picker-spec.md`.
+
+41. **Confirm the CLIs on Pedro's PC.** Record each CLI's real model list and effort flag on his PC, through Remote Control; no game.
+42. **Built-in model catalog.** `bridge/models.js` with every CLI's models and effort levels. Metric: models offered with no config, Claude 3 / others 0 → the CLIs' own counts.
+43. **Effort on the command line.** `effort=` flag, checked per model, passed as each CLI's own flag.
+44. **Effort levels in the inbox.** The bridge tells the addon which levels each model takes and its default.
+45. **Effort row in the AI picker.** Pick a level after the model; chat label "Agent · model · effort"; closed in combat. Live look by Pedro.
+46. **Read the CLI's own model list.** Codex cache, `agy models`, `grok models`, behind an off → shadow → on switch.
 
 Add new items at the end with the next number; mark done items `(done, PR #n)` instead of deleting them.
