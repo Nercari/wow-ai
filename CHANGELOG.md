@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- **Fast model offered for short questions.** The empty-chat card gets one more button, "Short questions? Use the fast model (haiku)", when the chat's agent has a haiku model and the chat is not on it yet. A click switches this chat's model; nothing is sent. In the second 2026-10-03 recording answers took 80 to 90 seconds.
 - **Follow-up buttons under the newest reply.** Two one-click buttons: "Review my last fight" (same command as the Review button) and "What should I buy first?" (types the question; you press Enter). They show only on a finished reply, not while one is pending, and are hidden in a fight. Asked for after the rotation answer at 5:05 of the second 2026-10-03 recording.
 - **Ask about quest rewards.** When a quest offers a choice of rewards, an **Ask WoW AI** button appears under the reward window. One click puts the offered item names into the question box ("Which fits my class and spec best?"); you still press Enter to send and you still pick and click the reward yourself. Hidden in a fight, with one reward, or while the AI is off.
 - **The window folds away in a fight.** When combat, an encounter or a challenge run starts, an open WoW AI window collapses to the small bar and opens again when it ends, so no AI advice is on screen while you fight. A window you had closed stays closed, and opening or closing it by hand in a fight wins. In the second 2026-10-03 recording a rotation list stayed readable for about 10 seconds in a fight.
