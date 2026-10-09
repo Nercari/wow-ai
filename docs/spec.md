@@ -50,15 +50,24 @@ Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17
 29. **Fight review is reachable** (done, PR #38 addon; PR #40 mentor). Pedro asked for a review four times in four minutes and gave up (7:05 to 11:15): the mentor said "send the addon's review command" without naming it, the window had no Review button, and a typed "review" did not attach the fight times. PR #38 added the "Review last fight" button and treats a typed "review" as the command; PR #40 makes the mentor name `/ai review`. Metric: tries before a review starts, 4 failed → 1.
 30. **Permissions for reading** (mentor part done, PR #43; "Allow really unblocks" and the one-line chat note still open). "Allow Bash(ls:*) & retry" did not unblock the agent (7:50, blocked again at 8:37, then "Allow PowerShell & retry" at 11:07); inferred cause: the rule does not cover a command with pipes. The mentor reads logs with its file tools, not shell commands; Allow really unblocks; chat shows one short line (reopens item 9). Metric: permission prompts in a session 3 → 0; chat lines per prompt 5 → 1.
 31. **Minimise the window when a fight starts** (done, this PR; live look pending). The rotation reply stayed readable during a fight (5:15 to 5:20). Minimise on combat start, restore after. Metric: seconds of AI advice visible in combat, about 10 → 0.
-32. **Status line** (reopens item 12): one timer, one action count, no "5 actions, no activity seen yet", and no internal words ("#13", "Sending #16...", 1:15, 7:52).
+32. **Status line** (done, this PR; live look pending) (reopens item 12): one timer, one action count, no "5 actions, no activity seen yet", and no internal words ("#13", "Sending #16...", 1:15, 7:52).
 33. **Combat log status in the window.** A line "Combat log: on / off" read from the game, with a button the player clicks out of combat to switch it on. `/combatlog` is a toggle and Pedro switched it off again without noticing (10:30, confirmed by Pedro). Check `docs/COMPLIANCE.md` before building.
 34. **Small window fixes.** "Reply arrived. Your draft is back in the box" shows with an empty box and inside the AI's message (7:47, 7:52); the AI menu keeps the old chat name after a chat switch and is see-through (0:25, 0:30); the same reply shows in the window and in chat while the window is open (2:30); an empty chat is left behind each time an AI is tried (1:05).
 35. **Copy icon per message** instead of the "Click to copy this message" tooltip that follows the mouse and hides the text (2:45, 5:05, 7:47, 10:07).
 36. **Reply formatting and background.** Backticks and `**` show raw (7:47, 11:07); names and damage numbers show through the reply text (5:20, 7:47).
 37. **Mentor wording.** No developer talk to the player ("this folder is not a git repo", 7:02; "the shell command I tried was blocked", 8:37) and no listing of folders outside the workspace (7:42). Fix in `mentor/AGENTS.md`.
-38. **New-quest nudge.** After a quest is accepted out of combat (12:50, 14:30), a chat link "[explain this quest]", like the level-up nudge (item 21).
-39. **Quest reward question.** A link on the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks.
-40. **Follow-up buttons and session recap.** One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
+38. **New-quest nudge** (done, this PR; live look pending). After a quest is accepted out of combat (12:50, 14:30), a chat link "[explain this quest]", like the level-up nudge (item 21).
+39. **Quest reward question** (done, this PR; live look pending). A button next to the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks. Was: a link on the reward window that puts the offered items into the question box (14:20); the player still chooses and clicks.
+40. **Follow-up buttons and session recap.** (follow-up buttons done, this PR; recap still open) One-click follow-up questions under a reply (5:05), and a short recap of fights, deaths and time when the player stops. Split into two items when started.
+
+Items 41 to 46 make the AI picker match each CLI's own models and effort levels (Pedro, 2026-10-09). Spec, sources and ticket details: `docs/model-picker-spec.md`.
+
+41. **Confirm the CLIs on Pedro's PC.** Record each CLI's real model list and effort flag on his PC, through Remote Control; no game.
+42. **Built-in model catalog.** `bridge/models.js` with every CLI's models and effort levels. Metric: models offered with no config, Claude 3 / others 0 → the CLIs' own counts.
+43. **Effort on the command line.** `effort=` flag, checked per model, passed as each CLI's own flag.
+44. **Effort levels in the inbox.** The bridge tells the addon which levels each model takes and its default.
+45. **Effort row in the AI picker.** Pick a level after the model; chat label "Agent · model · effort"; closed in combat. Live look by Pedro.
+46. **Read the CLI's own model list.** Codex cache, `agy models`, `grok models`, behind an off → shadow → on switch.
 
 Items 41 to 46 make the AI picker match each CLI's own models and effort levels (Pedro, 2026-10-09). Spec, sources and ticket details: `docs/model-picker-spec.md`.
 
