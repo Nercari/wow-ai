@@ -1858,6 +1858,7 @@ function WoWAI.UpdateStatus()
 	if ui.pool then ui.pool:SetText("AI: " .. ((c and c.agent and c.agent ~= "") and PoolName(c.agent, ChatModel(c)) or (run.bridgeAgent and AgentName(run.bridgeAgent) or "default"))) end
 	if ui.resend then ui.resend:SetShown(c and c.pendingId ~= nil and mode == "pixel") end
 	if ui.refresh then ui.refresh:SetShown(mode ~= "pixel" or run.slotsExhausted or run.slotsMissing or run.pixelFailed or false) end
+	WoWAI.UpdateLogButton()
 	WoWAI.UpdateMini()
 end
 
@@ -2906,8 +2907,26 @@ local function BuildUI()
 	death:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.death = death
 
+	-- Shows whether the game is writing the combat log and switches it on or off.
+	-- LoggingCombat is not a protected function; it only runs on the player's
+	-- click, never in combat.
+	local logBtn = MakeButton(f, "Combat log: ?", 130, function()
+		if InCombatLockdown() or type(LoggingCombat) ~= "function" then return end
+		LoggingCombat(not LoggingCombat())
+		WoWAI.UpdateLogButton()
+	end)
+	logBtn:SetPoint("LEFT", death, "RIGHT", 6, 0)
+	logBtn:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Combat log")
+		GameTooltip:AddLine("Reviews read the game's combat log, which must be on during the fight. Click to switch it on or off (out of combat only).", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	logBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.logBtn = logBtn
+
 	local resend = MakeButton(f, "Resend", 70, WoWAI.Resend)
-	resend:SetPoint("LEFT", death, "RIGHT", 6, 0)
+	resend:SetPoint("LEFT", logBtn, "RIGHT", 6, 0)
 	resend:Hide()
 	ui.resend = resend
 
@@ -3029,6 +3048,14 @@ local function BuildUI()
 			menu = menu, scroll = scroll, inputBg = inputBg, input = input, cwd = cwd, grip = grip,
 			mini = m, chatButtons = ui.chatButtons })
 	end
+end
+
+function WoWAI.UpdateLogButton()
+	local b = ui.logBtn
+	if not b then return end
+	local known = type(LoggingCombat) == "function"
+	b:SetText("Combat log: " .. (known and (LoggingCombat() and "on" or "off") or "?"))
+	if known and not InCombatLockdown() then b:Enable() else b:Disable() end
 end
 
 function WoWAI.Toggle(show)
