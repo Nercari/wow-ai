@@ -10,6 +10,19 @@ Merge evidence for wow-ai. Run these from the repo root and paste their real out
 
 In-game behavior cannot be verified by an agent. Only Pedro can run the game; a PR that changes the addon gives him a short checklist and says the in-game part is unverified.
 
+## Output (2026-10-10, `forever` f9e5b1e plus branch `claude/project-thread-0krksp`, backlog 42 model catalog, Linux)
+
+```
+npm ci                    -> exit 0
+node tools/safety-ci.js   -> exit 0
+npm test                  -> exit 0
+# tests 286
+# pass 283
+# fail 0
+# skipped 3
+>>> CODEC ROUND-TRIP PASS
+```
+
 ## Output (2026-10-10, `forever` f9e5b1e plus branch `claude/project-thread-a7dggu`, Linux)
 
 ```
@@ -36,6 +49,19 @@ npm test                  -> exit 0
 >>> CODEC ROUND-TRIP PASS
 ```
 
+## Output (2026-10-10, `forever` d9348cf plus branch `claude/project-thread-0krksp`, backlog 42 model catalog, Linux)
+
+```
+npm ci                    -> exit 0
+node tools/safety-ci.js   -> exit 0
+npm test                  -> exit 0
+# tests 288
+# pass 285
+# fail 0
+# skipped 3
+>>> CODEC ROUND-TRIP PASS
+```
+
 ## Output (2026-10-10, `forever` d9348cf plus branch `claude/project-thread-a7dggu`, Linux)
 
 ```
@@ -48,6 +74,7 @@ npm test                  -> exit 0
 # skipped 3
 >>> CODEC ROUND-TRIP PASS
 ```
+
 
 ## Output (2026-10-09, ticket 41, Pedro's PC, Windows)
 
@@ -123,4 +150,17 @@ $ hermes chat --help (trimmed)
   --provider PROVIDER  Inference provider (default: auto).
 
 $ grok: not on PATH; ls ~/.grok -> No such file or directory
+```
+
+## Output (2026-10-10, `forever` d1cd38f plus branch `claude/project-thread-0krksp`, backlog 42 model catalog, Linux)
+
+```
+npm ci                    -> exit 0
+node tools/safety-ci.js   -> exit 0
+npm test                  -> exit 0
+# tests 290
+# pass 287
+# fail 0
+# skipped 3
+>>> CODEC ROUND-TRIP PASS
 ```

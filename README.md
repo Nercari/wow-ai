@@ -34,7 +34,7 @@ The bridge drives whichever of these you have installed; each chat can use a dif
 | **Antigravity** (`agy`) | `agy -p=<prompt> --output-format stream-json`, resumed with `--conversation` | Antigravity permission switches | no |
 | **Hermes** (`hermes`) | `hermes chat --query-file -`, resumed with `--resume` | default only; the bridge never uses `--yolo` | no |
 
-`agent` in `bridge/config.json` is the default (`claude`). The **AI** button under the chat switches the current chat to any agent installed on your PC, and to any of its models (`agents.<id>.models` in the config; Claude offers opus, sonnet and haiku). `/wow-ai agent codex` (or `/wow-ai agent claude sonnet`) does the same typed; the reply bubbles and the game-chat echo are labelled with whoever answered. A session belongs to the agent that made it, so a chat that changes agent starts a fresh session there (its transcript stays). Install notes, the exact command lines, what each permission mode means per agent, and known limits are in [docs/AGENTS.md](docs/AGENTS.md).
+`agent` in `bridge/config.json` is the default (`claude`). The **AI** button under the chat switches the current chat to any agent installed on your PC, and to any of its models (`agents.<id>.models` in the config; each CLI's own models are built in, see docs/CONFIGURATION.md). `/wow-ai agent codex` (or `/wow-ai agent claude sonnet`) does the same typed; the reply bubbles and the game-chat echo are labelled with whoever answered. A session belongs to the agent that made it, so a chat that changes agent starts a fresh session there (its transcript stays). Install notes, the exact command lines, what each permission mode means per agent, and known limits are in [docs/AGENTS.md](docs/AGENTS.md).
 
 ## Requirements
 

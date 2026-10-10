@@ -16,6 +16,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { describeToolUse, ruleFor, rulesFor, baseName, validModel } = require('./protocol');
+const M = require('./models');
 
 const PROGRESS_CHARS = 140;
 
@@ -516,17 +517,11 @@ function agentConfig(cfg, id) {
   return { ...legacy, ...own };
 }
 
-// Claude Code's own aliases, offered when agents.claude.models is not set.
-const DEFAULT_MODELS = { claude: ['opus', 'sonnet', 'haiku'] };
-
 // The models a chat can switch this agent to in game: agents.<id>.models from
-// config.json (Claude: its aliases when unset), with agents.<id>.model first.
-// Empty: the agent only runs on its own default model.
+// config.json, else the built-in list of the CLI's own models (models.js), with
+// agents.<id>.model first. Empty: the agent only runs on its own default model.
 function modelChoices(acfg, id) {
-  const list = Array.isArray(acfg && acfg.models) ? acfg.models : (DEFAULT_MODELS[id] || []);
-  const out = [];
-  for (const m of [acfg && acfg.model, ...list]) if (validModel(m) && !out.includes(m)) out.push(m);
-  return out;
+  return M.entries(acfg, id).filter(e => validModel(e.id)).map(e => e.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -620,7 +615,7 @@ function resolveCommand(id, cfg = {}) {
 }
 
 module.exports = {
-  AGENTS, DEFAULT_AGENT, agentIds, normalizeAgent, displayName, agentConfig, modelChoices,
+  AGENTS, DEFAULT_AGENT, agentIds, normalizeAgent, displayName, agentConfig, modelChoices, modelEntries: M.entries,
   grokRules, snippet, contextBlock,
   claudeParser, codexParser, grokParser, agyParser, hermesParser, codexItemLine, grokCall, grokRefusal, shellInner,
   resolveCommand, unwrapShim, nativeNextTo,

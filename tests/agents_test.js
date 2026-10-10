@@ -30,13 +30,14 @@ test('agent ids, display names and the legacy Claude config keys', () => {
 
 test('modelChoices: the models a chat can switch an agent to in game', () => {
   // Claude offers its own aliases when agents.claude.models is not set.
-  assert.deepEqual(A.modelChoices({}, 'claude'), ['opus', 'sonnet', 'haiku']);
+  assert.deepEqual(A.modelChoices({}, 'claude'), ['fable', 'opus', 'sonnet', 'haiku']);
   // The configured default comes first, without duplicates.
-  assert.deepEqual(A.modelChoices({ model: 'sonnet' }, 'claude'), ['sonnet', 'opus', 'haiku']);
+  assert.deepEqual(A.modelChoices({ model: 'sonnet' }, 'claude'), ['sonnet', 'fable', 'opus', 'haiku']);
   assert.deepEqual(A.modelChoices({ models: ['gpt-5-codex', 'gpt-5'] }, 'codex'), ['gpt-5-codex', 'gpt-5']);
   assert.deepEqual(A.modelChoices({ models: [] }, 'claude'), []);
-  // Other agents offer nothing unless config.json lists models; bad names are dropped.
-  assert.deepEqual(A.modelChoices({}, 'grok'), []);
+  // Hermes and agy offer nothing unless config.json lists models; bad names are dropped.
+  assert.deepEqual(A.modelChoices({}, 'hermes'), []);
+  assert.deepEqual(A.modelChoices({}, 'agy'), []);
   assert.deepEqual(A.modelChoices({ models: ['ok-1', '--yolo', 'a b', 7] }, 'hermes'), ['ok-1']);
 });
 
@@ -377,4 +378,36 @@ test('resolveCommand: a configured script runs with this node, an npm .cmd shim 
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('built-in catalog: each CLI\'s own models and reasoning levels (docs/model-picker-spec.md)', () => {
+  const view = id => A.modelEntries({}, id).map(e => [e.id, e.efforts.join(','), e.defaultEffort]);
+  const five = 'low,medium,high,xhigh,max';
+  assert.deepEqual(view('claude'), [['fable', five, 'high'], ['opus', five, 'medium'], ['sonnet', five, 'medium'], ['haiku', '', '']]);
+  assert.deepEqual(view('codex'), [
+    ['gpt-6-astra', five + ',ultra', 'low'], ['gpt-6.1-sol', five + ',ultra', 'low'], ['gpt-6-sol', five + ',ultra', 'medium'],
+    ['gpt-6-luna', five, 'medium'], ['gpt-5.6-sol', five + ',ultra', 'low'], ['gpt-5.6-terra', five + ',ultra', 'medium'],
+    ['gpt-5.6-luna', five, 'medium'], ['gpt-5.5', 'low,medium,high,xhigh', 'medium'],
+  ]);
+  assert.deepEqual(view('grok'), [['grok-build', '', '']]);
+  assert.deepEqual(view('agy'), []);
+  assert.deepEqual(view('hermes'), []);
+  // ultracode is never offered, and every default is one of the entry's own levels.
+  for (const id of A.agentIds()) for (const e of A.modelEntries({}, id)) {
+    assert.ok(!e.efforts.includes('ultracode'));
+    assert.ok(e.defaultEffort === '' || e.efforts.includes(e.defaultEffort), e.id);
+  }
+});
+
+test('config.json models override the catalog; strings or { id, efforts, defaultEffort }', () => {
+  const e = A.modelEntries({ models: ['plain', { id: 'x-1', efforts: ['low', 'high', 'low', 'BAD', '../x'], defaultEffort: 'high' },
+    { id: 'y', efforts: ['low'], defaultEffort: 'max' }, { id: '--yolo' }, 7, null] }, 'codex');
+  assert.deepEqual(e.map(m => [m.id, m.efforts, m.defaultEffort]), [['plain', [], ''], ['x-1', ['low', 'high'], 'high'], ['y', ['low'], '']]);
+  assert.deepEqual(A.modelChoices({ models: [] }, 'codex'), []);
+  // agents.<id>.model goes first and keeps the levels the catalog gives it.
+  const c = A.modelEntries({ model: 'opus' }, 'claude');
+  assert.equal(c[0].id, 'opus');
+  assert.equal(c[0].efforts.length, 5);
+  assert.equal(c.length, 4);
+  assert.deepEqual(A.modelChoices({ model: 'custom-1' }, 'grok'), ['custom-1', 'grok-build']);
 });
