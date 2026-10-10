@@ -291,6 +291,35 @@ function ruleFor(d) {
   return name;
 }
 
+// Claude Code checks every part of a compound command (`ls x | head`, `a && b`,
+// `a; b`) against the rules on its own, so allowing only the first word leaves
+// the retry blocked again. This gives one rule per part; a part whose first word
+// is not a plain name falls back to the whole tool, like ruleFor.
+function rulesFor(d) {
+  const name = d.tool_name || 'Unknown';
+  if (name !== 'Bash') return [name];
+  const cmd = String((d.tool_input && d.tool_input.command) || '').trim();
+  const parts = [];
+  let cur = '', quote = '';
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i];
+    if (quote) { cur += c; if (c === quote) quote = ''; continue; }
+    if (c === '"' || c === "'") { quote = c; cur += c; continue; }
+    // `&` inside a redirection (2>&1, &>file, >&2) is not a separator.
+    if (c === '&' && (cmd[i - 1] === '>' || cmd[i - 1] === '<' || cmd[i + 1] === '>')) { cur += c; continue; }
+    if (c === '|' || c === ';' || c === '&' || c === '\n') { parts.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  parts.push(cur);
+  const rules = new Set();
+  for (const part of parts) {
+    const t = part.trim();
+    if (!t) continue;
+    rules.add(ruleFor({ tool_name: 'Bash', tool_input: { command: t } }));
+  }
+  return rules.size ? [...rules] : ['Bash'];
+}
+
 // One progress line per Claude tool call, as shown in the game's "working"
 // bubble (Codex and Grok have their own in agents.js).
 function describeToolUse(block) {
@@ -517,7 +546,7 @@ module.exports = {
   alreadyHandled, markHandled, pruneStale, MONTH_MS,
   resolveCwd, isBroadFolder, pickDefaultCwd, sameFolder, baseName,
   parseFlags, validModel, jobsFromStrip, parseOutbox, systemPrompt, splitSummary,
-  ruleFor, describeToolUse,
+  ruleFor, rulesFor, describeToolUse,
   luaStr, luaTable, SILENT_WAV,
   MAP_LIMITS, validateMapCommand, newMap, applyMapCommands, extractMapBlocks, parseMapFile, luaMap,
 };
