@@ -1988,7 +1988,12 @@ function WoWAI.Render()
 			if not h or h < 1 then h = 14 end
 			local extra = 0
 			if denied then
-				local label = "Allow " .. table.concat(denied, ", ") .. " & retry"
+				-- "Bash(ls:*)" reads as "ls": the player sees plain names, not rule syntax.
+				local names = {}
+				for _, rule in ipairs(denied) do
+					table.insert(names, rule:match("^Bash%(([^:]+):%*%)$") or rule)
+				end
+				local label = "Allow " .. table.concat(names, ", ") .. " & retry"
 				b.allow:SetText(label)
 				b.allow:SetWidth(math.min(width - 24, math.max(160, b.allow:GetFontString():GetStringWidth() + 30)))
 				b.allow.chatId = c.id

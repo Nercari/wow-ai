@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Allow really unblocks.** A blocked piped command such as `ls | head` now asks for every part, so one click on Allow lets the retry run. The game chat prints one fixed line ("Needs your OK to continue. Open the window and click Allow.") instead of the command, and the Allow button names the commands plainly. The mentor prompt no longer talks about git, shells or the tools folder.
+
 ### Added
 
 - **Session recap.** `/ai recap` (`cmd=recap`) gives a five-line recap of today: fights reviewed, deaths, time in fights and the mistake that repeated most, counted by the new `tools/session-recap.js` from the notebook's scorecard rows (a field no row has reads "not in the rows"). After a fight and 5 quiet minutes out of combat, one chat line offers **[recap this session]** (at most once an hour, never in combat, not while the AI is off); the link fills the box and you press Enter.
