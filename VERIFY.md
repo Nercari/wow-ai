@@ -35,3 +35,16 @@ npm test                  -> exit 0
 # skipped 3
 >>> CODEC ROUND-TRIP PASS
 ```
+
+## Output (2026-10-10, `forever` d9348cf plus branch `claude/project-thread-q9p8dd`, Linux)
+
+```
+npm ci                    -> exit 0
+node tools/safety-ci.js   -> exit 0
+npm test                  -> exit 0
+# tests 287
+# pass 284
+# fail 0
+# skipped 3
+>>> CODEC ROUND-TRIP PASS
+```
