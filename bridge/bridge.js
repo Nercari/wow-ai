@@ -684,7 +684,7 @@ function runJob(job) {
     beat(job);
     publish(key, { chat: job.chat, id: job.id, status: 'working', text: progress.join('\n'), cwd, session: sessionId, agent: agentId }, false);
   };
-  if (agent.stream === 'text') pushProgress('hermes is working (no live progress)');
+  if (agent.stream === 'text') pushProgress(`${agent.name} is working (no live progress)`);
   if (input.note) notes.push(input.note);
   if (P.isBroadFolder(cwd)) notes.push(BROAD_NOTE(cwd));
   // Long thinking stretches produce no tool events; keep the heartbeat alive anyway.
@@ -793,6 +793,8 @@ function finish(job, status, text, session, denied) {
   // that part is what the game chat prints; the window gets the whole reply.
   let summary = '';
   if (status === 'done') ({ text, summary } = P.splitSummary(text));
+  // A blocked run prints one short line in the game chat, whatever the agent wrote.
+  if (denied && denied.length) summary = 'Needs your OK to continue. Open the window and click Allow.';
   noteMessage(job, status === 'done' ? 'assistant' : 'system', status === 'done' ? text : 'Bridge error: ' + text);
   publish(chatKey(job), { chat: job.chat, id: job.id, status, text, summary, cwd: job.cwd, session, denied, agent: job.agent || '' }, true);
   signal('sig', job.id, true);

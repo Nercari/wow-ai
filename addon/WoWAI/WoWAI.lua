@@ -56,7 +56,7 @@ local run = { outbound = {} }
 -- Shared window backdrop. Declared up here because ShowCopy (rendering section)
 -- uses it too: a later `local` would be invisible there and resolve to a nil global.
 local BACKDROP = {
-	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+	bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
 	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
 	tile = true, tileSize = 16, edgeSize = 16,
 	insets = { left = 4, right = 4, top = 4, bottom = 4 },
@@ -88,6 +88,14 @@ end
 -- EditBoxes do not render UI escape sequences, so just make pipes harmless.
 local function Display(s)
 	return (tostring(s or ""):gsub("|", "¦"))
+end
+
+-- Reply text for the window: the chat has no markdown, so drop the marks the AI
+-- wraps around words (`code`, **bold**) and keep the words. The copy box keeps
+-- the original text.
+local function Plain(s)
+	s = tostring(s or ""):gsub("```[%w_]*", ""):gsub("%*%*", ""):gsub("`", "")
+	return s
 end
 
 local function Trim(s)
@@ -708,7 +716,7 @@ local function ActivityLine(chat)
 			local quiet = now - a.last
 			s = s .. ", last " .. FmtDur(quiet) .. " ago"
 			if quiet > 120 then s = s .. " (quiet for a while - stuck? /wow-ai cancel)" end
-		elseif now - started > 60 then
+		elseif count == 0 and now - started > 60 then
 			s = s .. ", no activity seen yet"
 		end
 	end
@@ -1497,6 +1505,9 @@ function WoWAI.SwitchChat(id)
 	end
 	db.activeChat = c.id
 	c.unread = 0
+	-- A menu opened for the old chat would name it while another is shown.
+	if ui.picker then ui.picker:Hide() end
+	if ui.chatMenu then ui.chatMenu:Hide() end
 	if ui.input then
 		ui.input:SetText(c.draft or "")
 		c.draft = nil
@@ -1506,6 +1517,16 @@ function WoWAI.SwitchChat(id)
 end
 
 function WoWAI.NewChat(name)
+	-- Unnamed and an empty chat already waits: use it instead of piling up more.
+	if not name or name == "" then
+		for _, e in ipairs(db.chats) do
+			if #e.history == 0 and not e.pendingId then
+				WoWAI.SwitchChat(e.id)
+				WoWAI.Toggle(true)
+				return
+			end
+		end
+	end
 	local c = AddChat(name and name ~= "" and name or nil)
 	if not c then
 		local a = ActiveChat()
@@ -1768,21 +1789,21 @@ function WoWAI.UpdateStatus()
 			elseif run.slotsExhausted then
 				s = "Slot pool used up this session - next keypress reloads to free it"
 			elseif run.pixelFailed then
-				s = "Bridge didn't see #" .. id .. " after " .. STRIP_TRIES .. " tries - next keypress switches to the reload path (or /wow-ai reload)"
+				s = "Bridge didn't see your message after " .. STRIP_TRIES .. " tries - next keypress switches to the reload path (or /wow-ai reload)"
 			elseif c.progress or (run.act and run.act[c.id] and run.act[c.id].count > 0) then
-				s = ChatAgentName(c) .. " is working on #" .. id .. " - " .. ActivityLine(c)
+				s = ChatAgentName(c) .. " is working - " .. ActivityLine(c)
 			elseif rec and not rec.acked then
-				s = "Sending #" .. id .. (rec.tries and rec.tries > 1 and (" (try " .. rec.tries .. "/" .. STRIP_TRIES .. ")") or "") .. "..."
+				s = "Sending" .. (rec.tries and rec.tries > 1 and (" (try " .. rec.tries .. "/" .. STRIP_TRIES .. ")") or "") .. "..."
 				local state = WoWAI.BridgeState()
 				if state == "down" then s = s .. " - bridge not seen lately, is the bridge running?" end
 			else
-				s = "Waiting for #" .. id .. " (checked " .. (run.polls or 0) .. "x)"
+				s = "Waiting for the reply (checked " .. (run.polls or 0) .. "x)"
 				if elapsed > 45 then
 					s = s .. " - no sign of the bridge. Is the bridge running? /wow-ai resend"
 				end
 			end
 		else
-			s = "Waiting for reply #" .. id .. ". Enter or Refresh checks now"
+			s = "Waiting for the reply. Enter or Refresh checks now"
 			if db.settings.autoRefresh then
 				s = s .. "; auto on next keypress after " .. db.settings.interval .. "s"
 			end
@@ -1799,7 +1820,7 @@ function WoWAI.UpdateStatus()
 		else
 			s = "Not connected - start the bridge, then click Connect"
 		end
-	elseif c and c.draft and c.draft ~= "" then
+	elseif c and c.draft and c.draft ~= "" and ui.input and Trim(ui.input:GetText() or "") ~= "" then
 		s = "Reply arrived. Your draft is back in the box - Enter to send it"
 	elseif run.restoring then
 		s = "Connecting to the bridge..."
@@ -1837,6 +1858,7 @@ function WoWAI.UpdateStatus()
 	if ui.pool then ui.pool:SetText("AI: " .. ((c and c.agent and c.agent ~= "") and PoolName(c.agent, ChatModel(c)) or (run.bridgeAgent and AgentName(run.bridgeAgent) or "default"))) end
 	if ui.resend then ui.resend:SetShown(c and c.pendingId ~= nil and mode == "pixel") end
 	if ui.refresh then ui.refresh:SetShown(mode ~= "pixel" or run.slotsExhausted or run.slotsMissing or run.pixelFailed or false) end
+	WoWAI.UpdateLogButton()
 	WoWAI.UpdateMini()
 end
 
@@ -1869,18 +1891,23 @@ local function GetBubble(i)
 		WoWAI.Allow(self.chatId, self.rules)
 	end)
 	b.allow:Hide()
-	-- FontStrings can't be selected, so a click opens the message in the copy box.
-	b:EnableMouse(true)
-	b:SetScript("OnMouseUp", function(self, button)
-		if button == "LeftButton" and self.text and self.text ~= "" then WoWAI.ShowCopy(self.text) end
+	-- FontStrings can't be selected, so a small copy icon opens the message in the
+	-- copy box. No tooltip: it followed the mouse and covered the text.
+	b.copyBtn = CreateFrame("Button", nil, b)
+	b.copyBtn:SetSize(16, 16)
+	b.copyBtn:SetPoint("TOPRIGHT", b, "TOPRIGHT", -6, -4)
+	b.copyBtn.icon = b.copyBtn:CreateTexture(nil, "ARTWORK")
+	b.copyBtn.icon:SetAllPoints()
+	b.copyBtn.icon:SetTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up")
+	b.copyBtn.icon:SetVertexColor(0.8, 0.8, 0.8)
+	local hl = b.copyBtn:CreateTexture(nil, "HIGHLIGHT")
+	hl:SetAllPoints()
+	hl:SetColorTexture(1, 1, 1, 0.2)
+	b.copyBtn:SetScript("OnClick", function()
+		if b.text and b.text ~= "" then WoWAI.ShowCopy(b.text) end
 	end)
-	b:SetScript("OnEnter", function(self)
-		if not self.text or self.text == "" then return end
-		GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-		GameTooltip:SetText("Click to copy this message")
-		GameTooltip:Show()
-	end)
-	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	b.when:ClearAllPoints()
+	b.when:SetPoint("TOPRIGHT", b.copyBtn, "TOPLEFT", -4, -2)
 	ui.bubbles[i] = b
 	if WoWAIForever and WoWAIForever.Fire then WoWAIForever.Fire("BUBBLE_BUILT", b) end
 	return b
@@ -1922,6 +1949,39 @@ function WoWAI.StarterQuestions()
 	}
 end
 
+-- The starter card's buttons: the four questions, then (if offered) a button
+-- that switches the chat to the fast model. Short questions answer sooner there.
+function WoWAI.StarterList(c)
+	local list = WoWAI.StarterQuestions()
+	local fast = WoWAI.FastModelOffer(c)
+	if fast then
+		fast.label = "Short questions? Use the fast model (" .. fast.model .. ")"
+		table.insert(list, fast)
+	end
+	return list
+end
+
+-- A fast model of the chat's agent (haiku for Claude), offered on the starter card
+-- for short questions. Nil when the chat already uses it or the agent has none.
+function WoWAI.FastModelOffer(c)
+	local agent = c and ((c.agent and c.agent ~= "") and c.agent or run.bridgeAgent) or nil
+	if not agent or agent == "" then return nil end
+	for _, m in ipairs(ModelsFor(agent) or {}) do
+		if m:lower():find("haiku", 1, true) then
+			if m == ChatModel(c) then return nil end
+			return { agent = agent, model = m }
+		end
+	end
+end
+
+-- One-click follow-ups under the newest finished reply. A question click types it
+-- into the box (the player presses Enter); "Review my last fight" is the same
+-- command as the window's Review button.
+WoWAI.FOLLOW_UPS = {
+	{ label = "Review my last fight", cmd = "review" },
+	{ label = "What should I buy first?", fill = "What should I buy first, and where do I get it?" },
+}
+
 function WoWAI.Render()
 	local c = ActiveChat()
 	if ui.content and c then
@@ -1934,7 +1994,7 @@ function WoWAI.Render()
 		if not width or width < 80 then width = 400 end
 		ui.content:SetWidth(width)
 		local y, n = 0, 0
-		local function Place(role, text, when, dim, denied, agent, starters)
+		local function Place(role, text, when, dim, denied, agent, starters, follow)
 			n = n + 1
 			local b = GetBubble(n)
 			local st = ROLE_STYLE[role] or ROLE_STYLE.system
@@ -1945,7 +2005,7 @@ function WoWAI.Render()
 			b.who:SetTextColor(st.color[1], st.color[2], st.color[3])
 			b.when:SetText(when or "")
 			b.body:SetWidth(width - 18)
-			b.body:SetText(Display(text))
+			b.body:SetText(Display(Plain(text)))
 			if dim then
 				b.body:SetTextColor(0.72, 0.72, 0.72)
 			else
@@ -1955,7 +2015,12 @@ function WoWAI.Render()
 			if not h or h < 1 then h = 14 end
 			local extra = 0
 			if denied then
-				local label = "Allow " .. table.concat(denied, ", ") .. " & retry"
+				-- "Bash(ls:*)" reads as "ls": the player sees plain names, not rule syntax.
+				local names = {}
+				for _, rule in ipairs(denied) do
+					table.insert(names, rule:match("^Bash%(([^:]+):%*%)$") or rule)
+				end
+				local label = "Allow " .. table.concat(names, ", ") .. " & retry"
 				b.allow:SetText(label)
 				b.allow:SetWidth(math.min(width - 24, math.max(160, b.allow:GetFontString():GetStringWidth() + 30)))
 				b.allow.chatId = c.id
@@ -1970,11 +2035,14 @@ function WoWAI.Render()
 			local cmds = starters or ((role == "assistant" and not dim) and WoWAI.CommandLines(text) or {})
 			b.copies = b.copies or {}
 			for k, cmd in ipairs(cmds) do
+				local pool = type(cmd) == "table" and cmd or nil
+				if pool then cmd = pool.label end
 				local cb = b.copies[k]
 				if not cb then
 					cb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
 					cb:SetHeight(20)
 					cb:SetScript("OnClick", function(self)
+						if self.pool then return WoWAI.SetPool(FindChat(self.pool.chat), self.pool.agent, self.pool.model) end
 						if not self.fill then return WoWAI.ShowCopy(self.line) end
 						if ui.input then ui.input:SetText(self.line); ui.input:SetFocus() end
 					end)
@@ -1984,6 +2052,7 @@ function WoWAI.Render()
 				cb:SetText(label)
 				cb:SetWidth(math.min(width - 24, cb:GetFontString():GetStringWidth() + 30))
 				cb.line = cmd
+				cb.pool = pool and { chat = c.id, agent = pool.agent, model = pool.model } or nil
 				cb.fill = starters ~= nil
 				cb:ClearAllPoints()
 				cb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
@@ -1991,10 +2060,40 @@ function WoWAI.Render()
 				extra = extra + 24
 			end
 			for k = #cmds + 1, #b.copies do b.copies[k]:Hide() end
+			b.follows = b.follows or {}
+			local nfollow = 0
+			if follow and not (WoWAIForever and WoWAIForever.Locked and WoWAIForever.Locked()) then
+				for _, fu in ipairs(WoWAI.FOLLOW_UPS) do
+					nfollow = nfollow + 1
+					local fb = b.follows[nfollow]
+					if not fb then
+						fb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+						fb:SetHeight(20)
+						fb:SetScript("OnClick", function(self)
+							if self.cmd then
+								SlashCmdList["WOWAI"](self.cmd)
+							elseif ui.input then
+								ui.input:SetText(self.fill)
+								ui.input:SetFocus()
+							end
+						end)
+						b.follows[nfollow] = fb
+					end
+					fb:SetText(fu.label)
+					fb:SetWidth(math.min(width - 24, fb:GetFontString():GetStringWidth() + 30))
+					fb.cmd, fb.fill = fu.cmd, fu.fill
+					fb:ClearAllPoints()
+					fb:SetPoint("TOPLEFT", b.body, "BOTTOMLEFT", 0, -6 - extra)
+					fb:Show()
+					extra = extra + 24
+				end
+			end
+			for k = nfollow + 1, #b.follows do b.follows[k]:Hide() end
 			b:SetHeight(6 + 12 + 4 + h + 8 + extra)
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", ui.content, "TOPLEFT", 0, -y)
 			b.text = text
+			b.copyBtn:SetShown(text ~= nil and text ~= "")
 			b:Show()
 			y = y + b:GetHeight() + 6
 		end
@@ -2002,13 +2101,14 @@ function WoWAI.Render()
 		for i, m in ipairs(c.history) do
 			-- The Allow button only makes sense on the newest reply, and only while idle.
 			local denied = (i == last and not c.pendingId and type(m.denied) == "table" and #m.denied > 0) and m.denied or nil
-			Place(m.role, m.text, m.t and date("%H:%M", m.t) or "", false, denied, m.agent)
+			local follow = i == last and not c.pendingId and m.role == "assistant" and not denied
+			Place(m.role, m.text, m.t and date("%H:%M", m.t) or "", false, denied, m.agent, nil, follow)
 		end
 		if c.pendingId then
 			local p = c.progress
-			-- No timer here: the bubble is drawn once and went stale next to the live status line.
+			-- No timer or status text here: the bubble is drawn once, goes stale next to the
+			-- live status line, and its text read as part of the AI's own message.
 			local head = "working..."
-			if run.statusText and run.statusText ~= "" then head = head .. "\n" .. run.statusText end
 			Place("assistant", (p and p ~= "") and (head .. "\n\n" .. p) or head, "", true, nil, ChatAgent(c))
 		elseif #c.history == 0 then
 			if run.restoring then
@@ -2016,7 +2116,7 @@ function WoWAI.Render()
 			elseif not WoWAI.IsConnected() then
 				Place("system", "Not connected to the bridge. Start it (npm start in the wow-ai folder, or wow-ai in your project), then click Connect below.", "", true)
 			else
-				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterQuestions())
+				Place("system", "Click the box below and type to start. Shift-click an item, spell or quest to link it into your message. /wow-ai help lists the commands; /ai <text> and /r work from the game chat too.\n\nOr click a question to put it in the box:", "", true, nil, nil, WoWAI.StarterList(c))
 			end
 		end
 		for i = n + 1, #ui.bubbles do
@@ -2053,7 +2153,7 @@ function WoWAI.ShowCopy(text)
 		cf:SetScript("OnDragStart", cf.StartMoving)
 		cf:SetScript("OnDragStop", cf.StopMovingOrSizing)
 		cf:SetBackdrop(BACKDROP)
-		cf:SetBackdropColor(0.05, 0.05, 0.07, 0.97)
+		cf:SetBackdropColor(0.03, 0.03, 0.05, 1)
 		cf:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 		-- The tooltip backdrop texture is see-through whatever its colour: a solid
 		-- fill keeps the reply underneath from showing through the selected text.
@@ -2245,6 +2345,18 @@ function WoWAI.Notify(chat, text, agent, summary)
 	end
 end
 
+-- Opens the window on a chat with a ready question in the box. Nothing is sent;
+-- the player presses Enter.
+function WoWAI.AskInBox(chatId, text)
+	if not db then return end
+	if FindChat(chatId) then WoWAI.SwitchChat(chatId) end
+	WoWAI.Toggle(true)
+	if ui.input and text then
+		ui.input:SetText(text)
+		ui.input:SetFocus()
+	end
+end
+
 -- Clicks on our [reply] / [open] links in the chat frame.
 hooksecurefunc("SetItemRef", function(link)
 	local action, chatId = tostring(link):match("^wowai:(%a+):(%w+)")
@@ -2319,7 +2431,7 @@ local function BuildUI()
 		s.point, s.relPoint, s.x, s.y = point, relPoint, x, y
 	end)
 	f:SetBackdrop(BACKDROP)
-	f:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
+	f:SetBackdropColor(0.03, 0.03, 0.05, 1)
 	f:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	f:Hide()
 	tinsert(UISpecialFrames, "WoWAIFrame")
@@ -2434,7 +2546,7 @@ local function BuildUI()
 		tile = true, tileSize = 16, edgeSize = 12,
 		insets = { left = 3, right = 3, top = 3, bottom = 3 },
 	})
-	menu:SetBackdropColor(0.08, 0.08, 0.1, 0.97)
+	menu:SetBackdropColor(0.08, 0.08, 0.1, 1)
 	menu:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	menu:EnableMouse(true)
 	menu.title = menu:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -2485,7 +2597,7 @@ local function BuildUI()
 		tile = true, tileSize = 16, edgeSize = 12,
 		insets = { left = 3, right = 3, top = 3, bottom = 3 },
 	})
-	picker:SetBackdropColor(0.08, 0.08, 0.1, 0.97)
+	picker:SetBackdropColor(0.08, 0.08, 0.1, 1)
 	picker:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	picker:EnableMouse(true)
 	picker.title = picker:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -2772,7 +2884,7 @@ local function BuildUI()
 
 	-- Same as typing /ai review: the command attaches the last fight's start and
 	-- end times, which a plain "review my fight" message does not carry.
-	local review = MakeButton(f, "Review last fight", 120, function() SlashCmdList["WOWAI"]("review") end)
+	local review = MakeButton(f, "Review last fight", 112, function() SlashCmdList["WOWAI"]("review") end)
 	review:SetPoint("LEFT", pool, "RIGHT", 6, 0)
 	review:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -2783,8 +2895,38 @@ local function BuildUI()
 	review:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.review = review
 
+	-- Same as typing /ai death: the command attaches the recent deaths.
+	local death = MakeButton(f, "Why did I die?", 100, function() SlashCmdList["WOWAI"]("death") end)
+	death:SetPoint("LEFT", review, "RIGHT", 6, 0)
+	death:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Why did I die?")
+		GameTooltip:AddLine("Asks the mentor about your last death (same as /ai death). Out of combat only.", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	death:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.death = death
+
+	-- Shows whether the game is writing the combat log and switches it on or off.
+	-- LoggingCombat is not a protected function; it only runs on the player's
+	-- click, never in combat.
+	local logBtn = MakeButton(f, "Combat log: ?", 130, function()
+		if InCombatLockdown() or type(LoggingCombat) ~= "function" then return end
+		LoggingCombat(not LoggingCombat())
+		WoWAI.UpdateLogButton()
+	end)
+	logBtn:SetPoint("LEFT", death, "RIGHT", 6, 0)
+	logBtn:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Combat log")
+		GameTooltip:AddLine("Reviews read the game's combat log, which must be on during the fight. Click to switch it on or off (out of combat only).", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	logBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.logBtn = logBtn
+
 	local resend = MakeButton(f, "Resend", 70, WoWAI.Resend)
-	resend:SetPoint("LEFT", review, "RIGHT", 6, 0)
+	resend:SetPoint("LEFT", logBtn, "RIGHT", 6, 0)
 	resend:Hide()
 	ui.resend = resend
 
@@ -2906,6 +3048,14 @@ local function BuildUI()
 			menu = menu, scroll = scroll, inputBg = inputBg, input = input, cwd = cwd, grip = grip,
 			mini = m, chatButtons = ui.chatButtons })
 	end
+end
+
+function WoWAI.UpdateLogButton()
+	local b = ui.logBtn
+	if not b then return end
+	local known = type(LoggingCombat) == "function"
+	b:SetText("Combat log: " .. (known and (LoggingCombat() and "on" or "off") or "?"))
+	if known and not InCombatLockdown() then b:Enable() else b:Disable() end
 end
 
 function WoWAI.Toggle(show)
@@ -3047,7 +3197,7 @@ SlashCmdList["WOWAI"] = function(msg)
 	local s = db.settings
 	local c = ActiveChat()
 	if cmd == "help" and rest:lower() == "forever" then
-		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, practice, level, look <question>, council <question>, phone, off, on")
+		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, practice, recap, level, look <question>, council <question>, phone, off, on")
 		WoWAI.Render()
 		return
 	end
@@ -3220,7 +3370,7 @@ SlashCmdList["WOWAI"] = function(msg)
 		WoWAI.Toggle(true)
 	elseif cmd == "cancel" then
 		if c.pendingId then
-			AddHistory(c, "system", "Gave up waiting on #" .. c.pendingId)
+			AddHistory(c, "system", "Gave up waiting for the reply")
 			run.outbound[c.pendingId] = nil
 			if run.act then run.act[c.id] = nil end
 			c.pendingId = nil

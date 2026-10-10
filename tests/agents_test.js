@@ -165,14 +165,13 @@ test('Claude stream: tool calls and text become progress, the result carries the
   r = p.feed({ type: 'result', session_id: 'sess-1', is_error: false, result: 'Done.', permission_denials: [{ tool_name: 'Bash', tool_input: { command: 'cargo build' } }, { tool_name: 'WebSearch' }] });
   assert.deepEqual(r.done, { text: 'Done.', error: false });
   assert.deepEqual(r.denied, ['Bash(cargo:*)', 'WebSearch']);
-  assert.ok(r.notes[0].includes('2 action(s)') && r.notes[0].includes('Bash: cargo build (+1 more)'));
-  // A multi-line command stays one short line in the note the game chat prints.
-  const ps = A.claudeParser().feed({ type: 'result', result: 'x', permission_denials: [{ tool_name: 'PowerShell', tool_input: { command: 'Get-ChildItem C:\\Users |\n  Where-Object { $_.Length -gt 1 } |\n  Select-Object Name\n' + 'x'.repeat(400) } }] });
-  assert.equal(ps.notes.length, 1);
-  assert.ok(!ps.notes[0].includes('\n') && ps.notes[0].length < 220, ps.notes[0]);
-  assert.ok(ps.notes[0].includes('PowerShell: Get-ChildItem C:\\Users |.'));
-  const crlf = A.claudeParser().feed({ type: 'result', result: 'x', permission_denials: [{ tool_name: 'PowerShell', tool_input: { command: 'dir\r\ncls' } }] });
-  assert.ok(crlf.notes[0].includes('PowerShell: dir. ') && !/[\r\n]/.test(crlf.notes[0]), crlf.notes[0]);
+  assert.deepEqual(r.notes, ['Claude needs your OK to continue. Click Allow in the window.']);
+  // A raw multi-line command never reaches the note the game chat prints.
+  const ps = A.claudeParser().feed({ type: 'result', result: 'x', permission_denials: [{ tool_name: 'PowerShell', tool_input: { command: 'Get-ChildItem C:\\Users |\n  Where-Object { $_.Length -gt 1 }\n' + 'x'.repeat(400) } }] });
+  assert.deepEqual(ps.notes, ['Claude needs your OK to continue. Click Allow in the window.']);
+  // A piped command is allowed part by part, so the retry is not blocked on the second command.
+  const piped = A.claudeParser().feed({ type: 'result', result: 'x', permission_denials: [{ tool_name: 'Bash', tool_input: { command: 'ls "My Logs" | head -5 && cat a.txt; ls' } }] });
+  assert.deepEqual(piped.denied, ['Bash(ls:*)', 'Bash(head:*)', 'Bash(cat:*)']);
   const err = A.claudeParser().feed({ type: 'result', is_error: true, result: 'boom' });
   assert.deepEqual(err.done, { text: 'boom', error: true });
 });
@@ -249,7 +248,7 @@ test('Grok stream: chunks join into the reply, thoughts and tool calls become pr
   d.feed({ type: 'tool_call', toolCallId: 't3', kind: 'execute', toolName: 'bash', rawInput: { command: 'cargo build --release' } });
   const denied = d.feed({ type: 'tool_call_update', toolCallId: 't3', status: 'denied' });
   assert.deepEqual(denied.denied, ['Bash(cargo:*)']);
-  assert.ok(denied.notes[0].includes('$ cargo build --release'));
+  assert.deepEqual(denied.notes, ['Grok needs your OK to continue. Click Allow in the window.']);
   assert.deepEqual(d.feed({ type: 'tool_call_update', toolCallId: 't3', status: 'in_progress' }).denied, []);
   // Errors end the run.
   assert.deepEqual(A.grokParser().feed({ type: 'error', message: 'not logged in' }).done, { text: 'not logged in', error: true });
@@ -274,8 +273,7 @@ test('Grok stream as Grok Build 1.0.41 prints it: tool inputs, a classifier refu
   // The classifier refusal: status failed plus a "was not executed" line.
   const blocked = p.feed({ type: 'tool_call_update', toolCallId: 'c5', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'Tool `run_terminal_command` was not executed: Auto mode blocked this action (rm of a named non-scratch file is irreversible deletion and must wait). Take a safer approach that stays within what the user asked for; do not retry this exact action.' } }], rawOutput: null });
   assert.deepEqual(blocked.denied, ['Bash(rm:*)']);
-  assert.ok(blocked.notes[0].startsWith('Grok was not allowed to: $ rm victim.txt (Auto mode blocked this action'), blocked.notes[0]);
-  assert.ok(blocked.notes[0].endsWith('Click Allow in the window to continue.') && !blocked.notes[0].includes('\n'));
+  assert.deepEqual(blocked.notes, ['Grok needs your OK to continue. Click Allow in the window.']);
   // A deny rule.
   p.feed({ type: 'tool_call', toolCallId: 'c6', title: 'run_terminal_command', kind: 'execute', toolName: 'run_terminal_command', rawInput: { command: 'touch probe-deny.txt' } });
   const denied = p.feed({ type: 'tool_call_update', toolCallId: 'c6', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'Tool `run_terminal_command` was not executed: Denied by permission policy: deny rule on bash matching "touch *"' } }] });
@@ -334,6 +332,28 @@ test('resolveCommand: a configured script runs with this node, an npm .cmd shim 
     const batShim = path.join(tmp, 'codex3.bat');
     fs.writeFileSync(batShim, '@node "%~dp0\\node_modules\\@openai\\codex\\bin\\codex.js" %*\r\n');
     assert.deepEqual(A.resolveCommand('codex', { path: batShim }), { file: process.execPath, args: [path.join(bin, 'codex.js')], found: true });
+    // Claude's npm package launches a .exe: run it directly.
+    const claudeExe = path.join(tmp, 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe');
+    fs.mkdirSync(path.dirname(claudeExe), { recursive: true });
+    fs.writeFileSync(claudeExe, '');
+    const claudeShim = path.join(tmp, 'claude.cmd');
+    fs.writeFileSync(claudeShim, 'IF EXIST "%dp0%\\node.exe" (\r\n  SET "_prog=%dp0%\\node.exe"\r\n)\r\n"%_prog%"  "%dp0%\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe" %*\r\n');
+    assert.deepEqual(A.unwrapShim(claudeShim, A.AGENTS.claude), { file: claudeExe, args: [], found: true });
+    // Grok's launcher has no extension: the native exe next to it when present, else this node runs the script.
+    const grokScript = path.join(tmp, 'node_modules', '@xai-official', 'grok', 'bin', 'grok');
+    fs.mkdirSync(path.dirname(grokScript), { recursive: true });
+    fs.writeFileSync(grokScript, '#!/usr/bin/env node\n');
+    const grokShim = path.join(tmp, 'grok.cmd');
+    fs.writeFileSync(grokShim, 'IF EXIST "%dp0%\\node.exe" (\r\n  SET "_prog=%dp0%\\node.exe"\r\n)\r\n"%_prog%"  "%dp0%\\node_modules\\@xai-official\\grok\\bin\\grok" %*\r\n');
+    assert.deepEqual(A.unwrapShim(grokShim, A.AGENTS.grok), { file: process.execPath, args: [grokScript], found: true });
+    const grokExe = path.join(tmp, 'node_modules', '@xai-official', `grok-win32-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, 'bin', 'grok.exe');
+    fs.mkdirSync(path.dirname(grokExe), { recursive: true });
+    fs.writeFileSync(grokExe, '');
+    assert.deepEqual(A.unwrapShim(grokShim, A.AGENTS.grok), { file: grokExe, args: [], found: true });
+    // A shim that only mentions node.exe unwraps to nothing.
+    const nodeOnly = path.join(tmp, 'odd.cmd');
+    fs.writeFileSync(nodeOnly, '"%dp0%\\node.exe" %*\r\n');
+    assert.equal(A.unwrapShim(nodeOnly, A.AGENTS.codex), null);
     const oldPath = process.env.CODEX_BIN;
     try {
       process.env.CODEX_BIN = path.join(tmp, 'codex.exe');

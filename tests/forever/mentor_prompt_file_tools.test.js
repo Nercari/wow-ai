@@ -19,3 +19,9 @@ test('the file tools the prompt names are the ones a mentor chat allows without 
   for (const tool of ['Read', 'Grep', 'Glob']) assert.ok(allowed.includes(tool), tool);
   assert.ok(!allowed.some(r => /^Bash(\((ls|cat|dir|tail)\b.*)?$/.test(r)), 'no shell read rule is pre-allowed');
 });
+
+test('the mentor prompt forbids developer talk and listing folders outside the workspace (backlog item 37)', () => {
+  const mentor = fs.readFileSync(path.join(__dirname, '..', '..', 'mentor', 'AGENTS.md'), 'utf8');
+  const rule = mentor.split('\n').find(l => l.includes('**Talk like a coach, not a developer.**')) || '';
+  for (const word of ['git', 'shells', 'blocked tools', '`tools` folder', 'Logs folder']) assert.ok(rule.includes(word), word);
+});

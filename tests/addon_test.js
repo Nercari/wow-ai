@@ -390,10 +390,15 @@ test('while the agent works: one timer (the status line) and an action count tha
   const texts = vm.evaluate('table.concat(STUB.texts, "|")').split('|');
   const running = texts.filter(t => t.includes('running '));
   assert.ok(running.length > 0, 'the status line shows the timer');
-  assert.ok(running.every(t => t.includes('is working on #')), 'only the status line carries a timer: ' + running.join(' / '));
+  assert.ok(running.every(t => t.includes('is working - ')), 'only the status line carries a timer: ' + running.join(' / '));
   assert.ok(running.some(t => t.includes('6 actions')), running.join(' / '));
   assert.ok(!texts.some(t => t.includes('0 actions')), 'never "0 actions" above a list of six');
   assert.ok(texts.some(t => t.startsWith('working...') && t.includes('read a') && !t.includes('running ')), 'the working bubble lists the actions without a second timer');
+  assert.ok(!texts.some(t => /is working|Sending|Waiting for/.test(t) && t.startsWith('working...')), 'the working bubble does not repeat the status line');
+  assert.ok(!texts.some(t => /#\d/.test(t) && /working|Sending|Waiting/.test(t)), 'no internal ids in the status line');
+  vm.run('STUB.texts = {}; STUB.now = STUB.now + 70; STUB.Tick()');
+  const later = vm.evaluate('table.concat(STUB.texts, "|")');
+  assert.ok(!later.includes('no activity seen yet'), 'no "no activity seen yet" next to a listed action count');
 });
 
 test('a denied reply shows Allow, and Allow resends with the rules as flags', () => {
@@ -441,6 +446,22 @@ test('an empty chat offers four starter questions fitted to class and level; a c
   vm.run('WoWAI.Toggle(true); WoWAI.Render()');
   const first = vm.evaluate('WoWAI.StarterQuestions()[1]');
   assert.ok(vm.evaluate('table.concat(STUB.texts, "|")').includes(first), 'the questions are drawn as buttons');
+  assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null, 'nothing is sent by itself');
+});
+
+test('the starter card offers the fast model for short questions, once; a click switches the chat and sends nothing', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('STUB.RunTimers()');
+  nextSlot(vm, '{ now = time(), cwd = "", agent = "claude", agents = { "claude" }, models = { claude = { "opus", "sonnet", "haiku" } }, replies = {} }');
+  vm.run('STUB.now = STUB.now + 6; STUB.Tick()');
+  vm.run('WoWAI.Toggle(true); WoWAI.Render()');
+  const hint = 'Short questions? Use the fast model (haiku)';
+  const shown = () => vm.evaluate('table.concat(STUB.texts, "|")').includes(hint);
+  assert.equal(vm.evaluate('WoWAI.FastModelOffer(WoWAIDB.chats[1]) ~= nil'), 'true');
+  assert.ok(shown(), 'the offer is drawn as a button');
+  vm.run('WoWAI.SetPool(WoWAIDB.chats[1], "claude", "haiku")');
+  assert.equal(vm.evaluate('WoWAI.FastModelOffer(WoWAIDB.chats[1])'), null, 'nothing to offer once on haiku');
   assert.equal(vm.evaluate('WoWAIDB.chats[1].pendingId'), null, 'nothing is sent by itself');
 });
 
@@ -872,22 +893,35 @@ test('the transcript keeps a scrolled-up position on resize and status refresh, 
   assert.equal(scrolled(), 700, 'switching chat goes to the bottom');
 });
 
-test('a message bubble hints that a click copies it, and the hint goes away on leave', () => {
+test('a message bubble has a copy icon (no mouse-following tooltip) that opens the copy box', () => {
   const vm = newVM();
   login(vm);
   vm.run('WoWAI.Toggle(true)');
-  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "copy me")');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "assistant", "copy **me** `now`")');
   vm.run('WoWAI.Render()');
   vm.run('BUBBLE = WoWAIContent.children[1]');
-  assert.equal(vm.evaluate('BUBBLE.text'), 'copy me');
-  vm.run('BUBBLE.scripts.OnEnter(BUBBLE)');
-  assert.equal(vm.evaluate('GameTooltip.shown'), 'true');
-  assert.equal(vm.evaluate('GameTooltip.text'), 'Click to copy this message');
-  vm.run('BUBBLE.scripts.OnLeave(BUBBLE)');
-  assert.equal(vm.evaluate('GameTooltip.shown'), 'false');
-  // And the click still opens the copy box.
-  vm.run('BUBBLE.scripts.OnMouseUp(BUBBLE, "LeftButton")');
-  assert.equal(vm.evaluate('WoWAICopyBox.text'), 'copy me');
+  assert.equal(vm.evaluate('BUBBLE.text'), 'copy **me** `now`');
+  assert.equal(vm.evaluate('BUBBLE.scripts.OnEnter == nil'), 'true');
+  vm.run('BUBBLE.copyBtn.scripts.OnClick(BUBBLE.copyBtn)');
+  assert.equal(vm.evaluate('WoWAICopyBox.text'), 'copy **me** `now`');
+  // The window shows the words without the markdown marks.
+  assert.equal(vm.evaluate('BUBBLE.body.text'), 'copy me now');
+});
+
+test('an unnamed new chat reuses an empty one; a switch closes the AI menu', () => {
+  const vm = newVM();
+  login(vm);
+  vm.run('SlashCmdList.WOWAI("new Other")'); vm.run('STUB.RunTimers()');
+  vm.run('WoWAI.internal.AddHistory(WoWAI.internal.ActiveChat(), "user", "hi")');
+  const before = vm.evaluate('#WoWAIDB.chats');
+  vm.run('WoWAI.NewChat()');
+  const after = vm.evaluate('#WoWAIDB.chats');
+  vm.run('WoWAI.NewChat()');
+  assert.equal(vm.evaluate('#WoWAIDB.chats'), after, 'a second unnamed chat reuses the empty one');
+  assert.equal(Number(after), Number(before) + 0, 'an empty chat already existed');
+  vm.run('WoWAI.ShowPicker(WoWAIDB.activeChat, WoWAIPoolPicker)');
+  vm.run('WoWAI.SwitchChat(WoWAIDB.chats[1].id)');
+  assert.equal(vm.evaluate('WoWAIPoolPicker:IsShown()'), 'false');
 });
 
 test('chat rows: right-click opens a menu that renames or sets the folder of that chat, the trash can asks before deleting', () => {
