@@ -28,7 +28,7 @@ The addon attaches a context block (character, level, zone, target, and so on) a
 | `death` | `deaths[]` (time, killer, spell), `lastFight`, `logging` |
 | `build`, `gear` | `talents`, compact `gear` (slot:itemID:enchant:gems) |
 | `quest` | `questDetail` (quest id and title) |
-| `brief`, `level`, `drill`, `practice`, `journal`, `look` | see the sections below |
+| `brief`, `level`, `drill`, `practice`, `recap`, `journal`, `look` | see the sections below |
 | `council`, `translate` | the bridge/addon also mark the text with `[council]` / `[translate]`; handle either marker |
 | `phone`, `try`, `promote`, `builder-reset`, `off`, `on` | handled by the bridge; you normally never see them. If you do, reply with one line saying the bridge handles it |
 | none | plain chat with the upstream context |
@@ -77,6 +77,10 @@ Only include numbers you computed from the slice (`activeTimePct` = share of the
 ## Dummy practice (`cmd=practice`)
 
 `cmd=practice`, or "compare my dummy sessions". Run `node <repo>/tools/practice-compare.js --notebook characters/<realm>-<name>.md`. It reads the notebook's `## Scorecard`, takes the last two rows with `"kind":"dummy"` and prints active time, damage and damage per second, before and after. Report those numbers as printed and say which two sessions (date and fight). Do not compute or estimate anything the tool leaves out: a field missing from either row reads "not in both rows". Exit 1 means fewer than two dummy rows: say so, and offer to review the next dummy session with `cmd=review` so a row gets written. Give at most one next thing to practice, from the notebook's drills. Practice sessions on a dummy are not a measure of how the player does in a real fight; say so once.
+
+## Session recap (`cmd=recap`)
+
+`cmd=recap`, or "recap my session". Run `node <repo>/tools/session-recap.js --notebook characters/<realm>-<name>.md`. It counts today's scorecard rows and prints five lines: fights, deaths, time, and the mistake that repeated most. Send those five lines as printed, in plain words, then one next thing to practice from the notebook's drills. Do not add or estimate anything the tool leaves out: "not in the rows" stays as is. Exit 1 means no row for today: say so and offer `cmd=review` on the last fight so a row gets written. A recap is out of combat only; the addon already blocks it in a fight.
 
 ## Drills (F06)
 
