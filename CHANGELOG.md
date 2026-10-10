@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- **Window polish (backlog 34-36).** Each message has a small copy icon instead of the "Click to copy this message" tooltip that followed the mouse. Backticks and `**` marks no longer show in replies (the copy box keeps the original text). The window, copy box and menus are solid dark instead of see-through. The AI menu closes when you switch chats, so it never names the old chat. **+ New chat** reuses an empty chat instead of adding another.
 - **Allow really unblocks.** A blocked piped command such as `ls | head` now asks for every part, so one click on Allow lets the retry run. The game chat prints one fixed line ("Needs your OK to continue. Open the window and click Allow.") instead of the command, and the Allow button names the commands plainly. The mentor prompt no longer talks about git, shells or the tools folder.
 
 ### Added
