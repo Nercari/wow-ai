@@ -56,7 +56,7 @@ local run = { outbound = {} }
 -- Shared window backdrop. Declared up here because ShowCopy (rendering section)
 -- uses it too: a later `local` would be invisible there and resolve to a nil global.
 local BACKDROP = {
-	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+	bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
 	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
 	tile = true, tileSize = 16, edgeSize = 16,
 	insets = { left = 4, right = 4, top = 4, bottom = 4 },
@@ -88,6 +88,14 @@ end
 -- EditBoxes do not render UI escape sequences, so just make pipes harmless.
 local function Display(s)
 	return (tostring(s or ""):gsub("|", "¦"))
+end
+
+-- Reply text for the window: the chat has no markdown, so drop the marks the AI
+-- wraps around words (`code`, **bold**) and keep the words. The copy box keeps
+-- the original text.
+local function Plain(s)
+	s = tostring(s or ""):gsub("```[%w_]*", ""):gsub("%*%*", ""):gsub("`", "")
+	return s
 end
 
 local function Trim(s)
@@ -1497,6 +1505,9 @@ function WoWAI.SwitchChat(id)
 	end
 	db.activeChat = c.id
 	c.unread = 0
+	-- A menu opened for the old chat would name it while another is shown.
+	if ui.picker then ui.picker:Hide() end
+	if ui.chatMenu then ui.chatMenu:Hide() end
 	if ui.input then
 		ui.input:SetText(c.draft or "")
 		c.draft = nil
@@ -1506,6 +1517,16 @@ function WoWAI.SwitchChat(id)
 end
 
 function WoWAI.NewChat(name)
+	-- Unnamed and an empty chat already waits: use it instead of piling up more.
+	if not name or name == "" then
+		for _, e in ipairs(db.chats) do
+			if #e.history == 0 and not e.pendingId then
+				WoWAI.SwitchChat(e.id)
+				WoWAI.Toggle(true)
+				return
+			end
+		end
+	end
 	local c = AddChat(name and name ~= "" and name or nil)
 	if not c then
 		local a = ActiveChat()
@@ -1837,6 +1858,7 @@ function WoWAI.UpdateStatus()
 	if ui.pool then ui.pool:SetText("AI: " .. ((c and c.agent and c.agent ~= "") and PoolName(c.agent, ChatModel(c)) or (run.bridgeAgent and AgentName(run.bridgeAgent) or "default"))) end
 	if ui.resend then ui.resend:SetShown(c and c.pendingId ~= nil and mode == "pixel") end
 	if ui.refresh then ui.refresh:SetShown(mode ~= "pixel" or run.slotsExhausted or run.slotsMissing or run.pixelFailed or false) end
+	WoWAI.UpdateLogButton()
 	WoWAI.UpdateMini()
 end
 
@@ -1869,18 +1891,23 @@ local function GetBubble(i)
 		WoWAI.Allow(self.chatId, self.rules)
 	end)
 	b.allow:Hide()
-	-- FontStrings can't be selected, so a click opens the message in the copy box.
-	b:EnableMouse(true)
-	b:SetScript("OnMouseUp", function(self, button)
-		if button == "LeftButton" and self.text and self.text ~= "" then WoWAI.ShowCopy(self.text) end
+	-- FontStrings can't be selected, so a small copy icon opens the message in the
+	-- copy box. No tooltip: it followed the mouse and covered the text.
+	b.copyBtn = CreateFrame("Button", nil, b)
+	b.copyBtn:SetSize(16, 16)
+	b.copyBtn:SetPoint("TOPRIGHT", b, "TOPRIGHT", -6, -4)
+	b.copyBtn.icon = b.copyBtn:CreateTexture(nil, "ARTWORK")
+	b.copyBtn.icon:SetAllPoints()
+	b.copyBtn.icon:SetTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up")
+	b.copyBtn.icon:SetVertexColor(0.8, 0.8, 0.8)
+	local hl = b.copyBtn:CreateTexture(nil, "HIGHLIGHT")
+	hl:SetAllPoints()
+	hl:SetColorTexture(1, 1, 1, 0.2)
+	b.copyBtn:SetScript("OnClick", function()
+		if b.text and b.text ~= "" then WoWAI.ShowCopy(b.text) end
 	end)
-	b:SetScript("OnEnter", function(self)
-		if not self.text or self.text == "" then return end
-		GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-		GameTooltip:SetText("Click to copy this message")
-		GameTooltip:Show()
-	end)
-	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	b.when:ClearAllPoints()
+	b.when:SetPoint("TOPRIGHT", b.copyBtn, "TOPLEFT", -4, -2)
 	ui.bubbles[i] = b
 	if WoWAIForever and WoWAIForever.Fire then WoWAIForever.Fire("BUBBLE_BUILT", b) end
 	return b
@@ -1978,7 +2005,7 @@ function WoWAI.Render()
 			b.who:SetTextColor(st.color[1], st.color[2], st.color[3])
 			b.when:SetText(when or "")
 			b.body:SetWidth(width - 18)
-			b.body:SetText(Display(text))
+			b.body:SetText(Display(Plain(text)))
 			if dim then
 				b.body:SetTextColor(0.72, 0.72, 0.72)
 			else
@@ -2066,6 +2093,7 @@ function WoWAI.Render()
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", ui.content, "TOPLEFT", 0, -y)
 			b.text = text
+			b.copyBtn:SetShown(text ~= nil and text ~= "")
 			b:Show()
 			y = y + b:GetHeight() + 6
 		end
@@ -2125,7 +2153,7 @@ function WoWAI.ShowCopy(text)
 		cf:SetScript("OnDragStart", cf.StartMoving)
 		cf:SetScript("OnDragStop", cf.StopMovingOrSizing)
 		cf:SetBackdrop(BACKDROP)
-		cf:SetBackdropColor(0.05, 0.05, 0.07, 0.97)
+		cf:SetBackdropColor(0.03, 0.03, 0.05, 1)
 		cf:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 		-- The tooltip backdrop texture is see-through whatever its colour: a solid
 		-- fill keeps the reply underneath from showing through the selected text.
@@ -2403,7 +2431,7 @@ local function BuildUI()
 		s.point, s.relPoint, s.x, s.y = point, relPoint, x, y
 	end)
 	f:SetBackdrop(BACKDROP)
-	f:SetBackdropColor(0.05, 0.05, 0.07, 0.95)
+	f:SetBackdropColor(0.03, 0.03, 0.05, 1)
 	f:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	f:Hide()
 	tinsert(UISpecialFrames, "WoWAIFrame")
@@ -2518,7 +2546,7 @@ local function BuildUI()
 		tile = true, tileSize = 16, edgeSize = 12,
 		insets = { left = 3, right = 3, top = 3, bottom = 3 },
 	})
-	menu:SetBackdropColor(0.08, 0.08, 0.1, 0.97)
+	menu:SetBackdropColor(0.08, 0.08, 0.1, 1)
 	menu:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	menu:EnableMouse(true)
 	menu.title = menu:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -2569,7 +2597,7 @@ local function BuildUI()
 		tile = true, tileSize = 16, edgeSize = 12,
 		insets = { left = 3, right = 3, top = 3, bottom = 3 },
 	})
-	picker:SetBackdropColor(0.08, 0.08, 0.1, 0.97)
+	picker:SetBackdropColor(0.08, 0.08, 0.1, 1)
 	picker:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	picker:EnableMouse(true)
 	picker.title = picker:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -2879,8 +2907,26 @@ local function BuildUI()
 	death:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.death = death
 
+	-- Shows whether the game is writing the combat log and switches it on or off.
+	-- LoggingCombat is not a protected function; it only runs on the player's
+	-- click, never in combat.
+	local logBtn = MakeButton(f, "Combat log: ?", 130, function()
+		if InCombatLockdown() or type(LoggingCombat) ~= "function" then return end
+		LoggingCombat(not LoggingCombat())
+		WoWAI.UpdateLogButton()
+	end)
+	logBtn:SetPoint("LEFT", death, "RIGHT", 6, 0)
+	logBtn:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Combat log")
+		GameTooltip:AddLine("Reviews read the game's combat log, which must be on during the fight. Click to switch it on or off (out of combat only).", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	logBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.logBtn = logBtn
+
 	local resend = MakeButton(f, "Resend", 70, WoWAI.Resend)
-	resend:SetPoint("LEFT", death, "RIGHT", 6, 0)
+	resend:SetPoint("LEFT", logBtn, "RIGHT", 6, 0)
 	resend:Hide()
 	ui.resend = resend
 
@@ -3002,6 +3048,14 @@ local function BuildUI()
 			menu = menu, scroll = scroll, inputBg = inputBg, input = input, cwd = cwd, grip = grip,
 			mini = m, chatButtons = ui.chatButtons })
 	end
+end
+
+function WoWAI.UpdateLogButton()
+	local b = ui.logBtn
+	if not b then return end
+	local known = type(LoggingCombat) == "function"
+	b:SetText("Combat log: " .. (known and (LoggingCombat() and "on" or "off") or "?"))
+	if known and not InCombatLockdown() then b:Enable() else b:Disable() end
 end
 
 function WoWAI.Toggle(show)

@@ -51,7 +51,7 @@ Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17
 30. **Permissions for reading** (done: mentor part PR #43; Allow covers every part of a piped command, chat shows one fixed line, Allow button shows plain names, PR #54). "Allow Bash(ls:*) & retry" did not unblock the agent (7:50, blocked again at 8:37, then "Allow PowerShell & retry" at 11:07); inferred cause: the rule does not cover a command with pipes. The mentor reads logs with its file tools, not shell commands; Allow really unblocks; chat shows one short line (reopens item 9). Metric: permission prompts in a session 3 → 0; chat lines per prompt 5 → 1.
 31. **Minimise the window when a fight starts** (done, this PR; live look pending). The rotation reply stayed readable during a fight (5:15 to 5:20). Minimise on combat start, restore after. Metric: seconds of AI advice visible in combat, about 10 → 0.
 32. **Status line** (done, this PR; live look pending) (reopens item 12): one timer, one action count, no "5 actions, no activity seen yet", and no internal words ("#13", "Sending #16...", 1:15, 7:52).
-33. **Combat log status in the window.** A line "Combat log: on / off" read from the game, with a button the player clicks out of combat to switch it on. `/combatlog` is a toggle and Pedro switched it off again without noticing (10:30, confirmed by Pedro). Check `docs/COMPLIANCE.md` before building.
+33. **Combat log status in the window** (done, this PR; live look pending). A line "Combat log: on / off" read from the game, with a button the player clicks out of combat to switch it on. `/combatlog` is a toggle and Pedro switched it off again without noticing (10:30, confirmed by Pedro). Check `docs/COMPLIANCE.md` before building.
 34. **Small window fixes.** "Reply arrived. Your draft is back in the box" shows with an empty box and inside the AI's message (7:47, 7:52); the AI menu keeps the old chat name after a chat switch and is see-through (0:25, 0:30); the same reply shows in the window and in chat while the window is open (2:30); an empty chat is left behind each time an AI is tried (1:05).
 35. **Copy icon per message** instead of the "Click to copy this message" tooltip that follows the mouse and hides the text (2:45, 5:05, 7:47, 10:07).
 36. **Reply formatting and background.** Backticks and `**` show raw (7:47, 11:07); names and damage numbers show through the reply text (5:20, 7:47).
@@ -62,7 +62,7 @@ Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17
 
 Items 41 to 46 make the AI picker match each CLI's own models and effort levels (Pedro, 2026-10-09). Spec, sources and ticket details: `docs/model-picker-spec.md`.
 
-41. **Confirm the CLIs on Pedro's PC.** Record each CLI's real model list and effort flag on his PC, through Remote Control; no game.
+41. **Confirm the CLIs on Pedro's PC.** (done, results in `docs/model-picker-spec.md`; Grok not installed, Codex sign-in expired) Record each CLI's real model list and effort flag on his PC, through Remote Control; no game.
 42. **Built-in model catalog.** `bridge/models.js` with every CLI's models and effort levels. Metric: models offered with no config, Claude 3 / others 0 → the CLIs' own counts.
 43. **Effort on the command line.** `effort=` flag, checked per model, passed as each CLI's own flag.
 44. **Effort levels in the inbox.** The bridge tells the addon which levels each model takes and its default.

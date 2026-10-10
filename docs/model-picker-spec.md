@@ -62,6 +62,26 @@ Labels: OBSERVED (read in the CLI's own source or run here), DOCUMENTED (officia
 - Effort: `agent.reasoning_effort` in `config.yaml`, values none, minimal, low, medium, high, xhigh, default medium (DOCUMENTED, `cli-config.yaml.example`). A per-run `--reasoning` option is UNVERIFIED (inferred): `hermes_cli/main.py` forwards `args.reasoning` to the chat, but the flag's spelling and values are not confirmed.
 - Bridge flag: the per-run option only, after ticket 41 confirms it. Never write the player's `config.yaml` from the bridge; without a per-run option Hermes offers no effort in game.
 
+## Confirmed on Pedro's PC (ticket 41, 2026-10-09)
+
+Read-only: help and list commands, plus one one-line Codex run. No saved setting was changed. Account data is left out.
+
+| Line above | Result |
+|---|---|
+| Claude `--effort low\|medium\|high\|xhigh\|max` | Confirmed (`claude --help`, 2.1.295; the spec said 2.1.296). `--model` takes an alias such as `fable`, `opus`, `sonnet` or a full name. |
+| Claude per-model levels, default | Not checkable without paid prompts; stays DOCUMENTED. |
+| Codex `-m` and `-c key=value` | Confirmed (`codex exec --help`, codex-cli 0.159.0). |
+| Codex `-c model_reasoning_effort=high` through `exec` | Not confirmed. The flags were accepted, but the run stopped on an expired ChatGPT sign-in (401), so no model replied. Needs `codex login`, then one rerun. |
+| Codex `~/.codex/models_cache.json` shape | Confirmed: keys `fetched_at`, `etag`, `client_version`, `identity`, `models`; each model has `slug`, `visibility` (`list` or `hide`), `default_reasoning_level`, `supported_reasoning_levels[].effort`. The file here is from 2026-10-02 (client 0.159.2). |
+| Codex table above | Wrong in three places, per that cache: gpt-6-astra default is medium, not low; `gpt-daybreak-blue-latest` (low, medium, high, xhigh, max, ultra; default low) is also `list`; gpt-5.5 is present. Re-read the cache after sign-in before ticket 42 copies the table. |
+| Grok `grok`, `grok models`, `--effort`, levels, default | Not installed on this PC (no `grok` on PATH, no `~/.grok`). Stays UNVERIFIED. |
+| agy `models --output-format json` | Wrong. `agy models` takes no flags and prints tab-separated `id<TAB>label` lines (agy 1.3.2). |
+| agy ids look like `gemini-3.1-pro-high` | Confirmed. Live list: `gemini-3.8-flash`, `-3.7-flash`, `-3.6-flash` with `-high`, `-medium`, `-low` (no Fast); `gemini-3.1-pro-high` and `-low`; `claude-opus-5-5` and `claude-sonnet-5-5` with `-low`, `-medium`, `-high` (no "Thinking" in the label, no 4.6 models); `gpt-oss-120b-medium`. |
+| agy `--effort` | Confirmed: `--effort low\|medium\|high\|xhigh\|max` for the session. Whether it applies to ids that already carry a level is not tested. |
+| Hermes `--reasoning` | Confirmed (Hermes 0.21.5): `hermes chat --reasoning LEVEL`, values none, minimal, low, medium, high, xhigh, max, ultra; "overrides agent.reasoning_effort for this run only". The levels in the Hermes section above are missing max and ultra. `-m MODEL` and `--provider` confirmed. |
+
+Effect on the tickets: 43 may use Hermes `--reasoning` (it is no longer conditional); 42 must take the agy list and Codex table from this section; 46 must read `agy models` as plain text, not JSON; Grok stays out of the catalog until it is installed.
+
 ## Design
 
 - One catalog, in the bridge. `bridge/models.js` holds, per agent, an ordered list of `{ id, label, efforts, defaultEffort }` copied from the tables above, each agent with its source URL and checked date. `agents.<id>.models` in `config.json` still overrides it; a plain string means a model with no effort levels.
