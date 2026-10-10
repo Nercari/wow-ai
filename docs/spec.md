@@ -62,7 +62,7 @@ Items 29 to 40 come from the second video review (2026-10-03, recording of 17:17
 
 Items 41 to 46 make the AI picker match each CLI's own models and effort levels (Pedro, 2026-10-09). Spec, sources and ticket details: `docs/model-picker-spec.md`.
 
-41. **Confirm the CLIs on Pedro's PC.** Record each CLI's real model list and effort flag on his PC, through Remote Control; no game.
+41. **Confirm the CLIs on Pedro's PC.** (done, results in `docs/model-picker-spec.md`; Grok not installed, Codex sign-in expired) Record each CLI's real model list and effort flag on his PC, through Remote Control; no game.
 42. **Built-in model catalog.** `bridge/models.js` with every CLI's models and effort levels. Metric: models offered with no config, Claude 3 / others 0 → the CLIs' own counts.
 43. **Effort on the command line.** `effort=` flag, checked per model, passed as each CLI's own flag.
 44. **Effort levels in the inbox.** The bridge tells the addon which levels each model takes and its default.
