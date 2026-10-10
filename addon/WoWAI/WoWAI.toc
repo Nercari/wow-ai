@@ -28,3 +28,4 @@ Forever_Skin.lua
 Forever_Keys.lua
 Forever_Nudge.lua
 Forever_Quest.lua
+Forever_Recap.lua
