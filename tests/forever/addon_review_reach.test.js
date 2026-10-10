@@ -68,3 +68,14 @@ test('in combat the Review button sends nothing', () => {
   assert.equal(v.get('WoWAIDB.outbox'), 'nil');
   assert.match(v.get('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text'), /AI paused in combat/);
 });
+
+test('the Why did I die? button sends the death command; in combat it sends nothing', () => {
+  let v = vm();
+  v.run('CLICK("Why did I die?")');
+  assert.equal(outbox(v).cmd, 'death');
+  assert.equal(outbox(v).text, 'Why did I die?');
+
+  v = vm();
+  v.run('STUB.combat = true; STUB.FireEvent("PLAYER_REGEN_DISABLED"); CLICK("Why did I die?")');
+  assert.equal(v.get('WoWAIDB.outbox'), 'nil');
+});
