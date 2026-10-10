@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Allow really unblocks.** A blocked piped command such as `ls | head` now asks for every part, so one click on Allow lets the retry run. The game chat prints one fixed line ("Needs your OK to continue. Open the window and click Allow.") instead of the command, and the Allow button names the commands plainly. The mentor prompt no longer talks about git, shells or the tools folder.
+
 ### Added
 
 - **Each AI's own models are built in (backlog 42).** The **AI** picker now offers the models the CLIs themselves list, not just Claude's three aliases: Claude `fable`, `opus`, `sonnet`, `haiku`; Codex `gpt-6-astra` to `gpt-5.5` (eight models); Grok `grok-build`. The bridge also knows each model's reasoning levels (`bridge/models.js`); the picker does not show or send them yet (backlog 43-45). agy and Hermes still need `agents.<id>.models` in `config.json` until their lists are confirmed on the PC. `models` entries may now be `{ id, efforts, defaultEffort }`.
