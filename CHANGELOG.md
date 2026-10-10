@@ -42,6 +42,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- **Claude and Grok installed with npm on Windows are found.** Their npm shims launch a `.exe` (Claude) or an extension-less script (Grok), not a `.js`, so the bridge said "install it" although they were installed. The shim's launcher is now taken whatever its name. Ported from upstream `chelinho139/wow-ai` 10b8ba1. The "working" line for text-stream agents names the agent instead of always saying hermes.
 - `bridge\wowai-kill.vbs` (and `bridge\stop-bridge.ps1`) now actually stop the bridge. They passed each process's command line to Windows as ANSI text to a function that reads Unicode, so no command line ever parsed and nothing matched. A bridge running in its own window (`start-window.cmd`, the launcher) is stopped together with that window instead of leaving it open at a prompt.
 - Fixes to the coach's instructions now reach a mentor workspace that already exists. The workspace was copied from `mentor/` once and never updated; the bridge now brings its `AGENTS.md` up to date at each start and keeps the replaced copy as `AGENTS.md.bak`. Your own files (`LOCAL.md`, notebooks, reviews, journal) are not touched.
 - While the agent works the window shows one timer, in the status line. The "working..." bubble carried a second one that went stale ("running 25s" next to "running 17s"). The action count is never lower than the number of actions listed ("0 actions" above six lines when the sound channel is off).
