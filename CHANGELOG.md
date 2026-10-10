@@ -10,6 +10,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- **Combat log button.** A **Combat log: on / off** button under the chat shows whether the game is writing the combat log and switches it with one click, out of combat only. Reviews need the log, and `/combatlog` is a toggle that was switched off again unnoticed in the second 2026-10-03 recording.
 - **Session recap.** `/ai recap` (`cmd=recap`) gives a five-line recap of today: fights reviewed, deaths, time in fights and the mistake that repeated most, counted by the new `tools/session-recap.js` from the notebook's scorecard rows (a field no row has reads "not in the rows"). After a fight and 5 quiet minutes out of combat, one chat line offers **[recap this session]** (at most once an hour, never in combat, not while the AI is off); the link fills the box and you press Enter.
 - **"explain this quest" link after you accept a quest.** Like the level-up one: once combat is over, one chat line "Quest accepted. [explain this quest]" puts a ready question (with the quest's name when the game gives it) in the box; you still press Enter. Silent while the AI is off. Seen missing at 12:50 and 14:30 of the second 2026-10-03 recording.
 - **Fast model offered for short questions.** The empty-chat card gets one more button, "Short questions? Use the fast model (haiku)", when the chat's agent has a haiku model and the chat is not on it yet. A click switches this chat's model; nothing is sent. In the second 2026-10-03 recording answers took 80 to 90 seconds.

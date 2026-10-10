@@ -69,6 +69,18 @@ test('in combat the Review button sends nothing', () => {
   assert.match(v.get('WoWAIDB.chats[1].history[#WoWAIDB.chats[1].history].text'), /AI paused in combat/);
 });
 
+test('the Combat log button shows the game state and toggles it only out of combat', () => {
+  const v = vm();
+  v.run('STUB.logging = false; function LoggingCombat(on) if on ~= nil then STUB.logging = on end return STUB.logging end');
+  v.run('WoWAI.UpdateLogButton()');
+  v.run('CLICK("Combat log: off")');
+  assert.equal(v.get('STUB.logging'), 'true');
+  v.run('CLICK("Combat log: on")');
+  assert.equal(v.get('STUB.logging'), 'false');
+  v.run('STUB.combat = true; WoWAI.UpdateLogButton(); CLICK("Combat log: off")');
+  assert.equal(v.get('STUB.logging'), 'false');
+});
+
 test('the Why did I die? button sends the death command; in combat it sends nothing', () => {
   let v = vm();
   v.run('CLICK("Why did I die?")');
