@@ -15,7 +15,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { describeToolUse, ruleFor, baseName, validModel } = require('./protocol');
+const { describeToolUse, ruleFor, rulesFor, baseName, validModel } = require('./protocol');
 
 const PROGRESS_CHARS = 140;
 
@@ -80,12 +80,9 @@ function claudeParser() {
         const text = typeof ev.result === 'string' ? ev.result : JSON.stringify(ev.result ?? '', null, 2);
         const denials = Array.isArray(ev.permission_denials) ? ev.permission_denials : [];
         if (denials.length) {
-          out.denied = [...new Set(denials.map(ruleFor))];
-          // One short line: the game chat prints this note, and a raw multi-line command floods it.
-          const d0 = denials[0];
-          const first = d0.tool_name + (d0.tool_input && d0.tool_input.command ? ': ' + firstLine(d0.tool_input.command) : '');
-          const more = denials.length > 1 ? ` (+${denials.length - 1} more)` : '';
-          out.notes.push(`Claude needs your OK for ${denials.length} action(s): ${first}${more}. Click Allow in the window to continue.`);
+          out.denied = [...new Set(denials.flatMap(rulesFor))];
+          // One short line, no raw command: the game chat prints this note.
+          out.notes.push('Claude needs your OK to continue. Click Allow in the window.');
         }
         out.done = { text, error: !!ev.is_error };
       }
@@ -189,7 +186,7 @@ function grokCall(ev) {
   switch (k) {
     case 'execute': {
       const cmd = firstLine(input.command || input.cmd || input.script || '') || firstLine(ev.title || '');
-      return { line: `$ ${cmd}`, rule: ruleFor({ tool_name: 'Bash', tool_input: { command: cmd } }) };
+      return { line: `$ ${cmd}`, rules: rulesFor({ tool_name: 'Bash', tool_input: { command: cmd } }) };
     }
     case 'read': return { line: `read ${file()}`, rule: 'Read' };
     case 'list': return { line: `ls ${file() || '.'}`, rule: 'Read' };
@@ -254,9 +251,12 @@ function grokParser() {
           const why = grokRefusal(ev);
           if (why !== null) {
             const c = calls.get(String(ev.toolCallId || ''));
-            if (c && c.rule) {
-              out.denied.push(c.rule);
-              out.notes.push(`Grok was not allowed to: ${c.line} (${snippet(why).replace(/\.\.\.$/, '')}). Click Allow in the window to continue.`);
+            const rules = c && (c.rules || (c.rule ? [c.rule] : []));
+            if (rules && rules.length) {
+              out.denied.push(...rules);
+              out.notes.push(/denied by permission/i.test(why)
+                ? `Grok is not allowed to do that: ${snippet(why).replace(/\.\.\.$/, '')}.`
+                : 'Grok needs your OK to continue. Click Allow in the window.');
             }
           }
           break;

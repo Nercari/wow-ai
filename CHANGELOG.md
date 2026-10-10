@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Allow really unblocks.** A blocked piped command such as `ls | head` now asks for every part, so one click on Allow lets the retry run. The game chat prints one fixed line ("Needs your OK to continue. Open the window and click Allow.") instead of the command, and the Allow button names the commands plainly. The mentor prompt no longer talks about git, shells or the tools folder.
+
 ### Added
 
 - **Combat log button.** A **Combat log: on / off** button under the chat shows whether the game is writing the combat log and switches it with one click, out of combat only. Reviews need the log, and `/combatlog` is a toggle that was switched off again unnoticed in the second 2026-10-03 recording.
