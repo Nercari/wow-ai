@@ -2852,7 +2852,7 @@ local function BuildUI()
 
 	-- Same as typing /ai review: the command attaches the last fight's start and
 	-- end times, which a plain "review my fight" message does not carry.
-	local review = MakeButton(f, "Review last fight", 120, function() SlashCmdList["WOWAI"]("review") end)
+	local review = MakeButton(f, "Review last fight", 112, function() SlashCmdList["WOWAI"]("review") end)
 	review:SetPoint("LEFT", pool, "RIGHT", 6, 0)
 	review:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -2863,6 +2863,18 @@ local function BuildUI()
 	review:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	ui.review = review
 
+	-- Same as typing /ai death: the command attaches the recent deaths.
+	local death = MakeButton(f, "Why did I die?", 100, function() SlashCmdList["WOWAI"]("death") end)
+	death:SetPoint("LEFT", review, "RIGHT", 6, 0)
+	death:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Why did I die?")
+		GameTooltip:AddLine("Asks the mentor about your last death (same as /ai death). Out of combat only.", 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	death:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	ui.death = death
+
 	-- Shows whether the game is writing the combat log and switches it on or off.
 	-- LoggingCombat is not a protected function; it only runs on the player's
 	-- click, never in combat.
@@ -2871,7 +2883,7 @@ local function BuildUI()
 		LoggingCombat(not LoggingCombat())
 		WoWAI.UpdateLogButton()
 	end)
-	logBtn:SetPoint("LEFT", review, "RIGHT", 6, 0)
+	logBtn:SetPoint("LEFT", death, "RIGHT", 6, 0)
 	logBtn:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
 		GameTooltip:SetText("Combat log")
@@ -3153,7 +3165,7 @@ SlashCmdList["WOWAI"] = function(msg)
 	local s = db.settings
 	local c = ActiveChat()
 	if cmd == "help" and rest:lower() == "forever" then
-		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, practice, level, look <question>, council <question>, phone, off, on")
+		AddHistory(c, "system", "Forever: review, death, build, gear, quest, brief <what>, drill, practice, recap, level, look <question>, council <question>, phone, off, on")
 		WoWAI.Render()
 		return
 	end

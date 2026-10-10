@@ -29,7 +29,8 @@ function rewrite(agent, args, cwd, repo) {
     args.push('--allowedTools', 'Read', 'Grep', 'Glob', 'Edit', 'Write', 'WebFetch', 'WebSearch', `Bash(node ${path.join(repo, 'tools', 'slice-fight.js')}:*)`,
       `Bash(node ${path.join(repo, 'tools', 'check-citations.js')}:*)`,
       `Bash(node ${path.join(repo, 'tools', 'theorycraft.js')}:*)`,
-      `Bash(node ${path.join(repo, 'tools', 'practice-compare.js')}:*)`);
+      `Bash(node ${path.join(repo, 'tools', 'practice-compare.js')}:*)`,
+      `Bash(node ${path.join(repo, 'tools', 'session-recap.js')}:*)`);
   } else if (agent === 'codex') {
     // codex exec ends with its prompt positional `[resume <id>] -`; options go before it.
     const dash = args.lastIndexOf('-');
